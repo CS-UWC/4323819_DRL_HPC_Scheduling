@@ -120,15 +120,14 @@ def load_manifest(manifest_path: Path) -> pd.DataFrame:
 
 def validate_manifest_schema(df: pd.DataFrame) -> None:
     """
-    Validate the manifest DataFrame:
-      - All MANIFEST_REQUIRED columns are present.
-      - No duplicate run_id values.
-
     Ref: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.duplicated.html
     """
-    # TODO: check all MANIFEST_REQUIRED columns are present, raise ValueError listing missing ones
-    # TODO: check for duplicate run_id values and raise if found
-    raise NotImplementedError
+    missing = (req for req in MANIFEST_REQUIRED if req not in df.columns.tolist())
+    if missing not None:
+      raise ValueError(f"The following required columns are missing from the manifest {missing}")
+
+    if not df["run_id"].has_duplicates:
+      raise ValueError("Duplicate run_id values found")
 
 
 # ---------------------------------------------------------------------------
