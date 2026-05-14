@@ -1,70 +1,82 @@
-# HPC-DRL-Scheduler (Consolidation Repository)
+# DRL HPC Scheduling
 
-This repository is the consolidated structure for final project packaging and public release.
+Imperative Analysis through Reproducible Pipelines
 
-Active implementation now lives in this repository under `src/`.
+This repository provides an end-to-end, reproducible pipeline to train, evaluate, aggregate, and statistically compare deep reinforcement learning (DRL) schedulers for heterogeneous HPC workloads. The workflow targets six DRL algorithms across three families (PPO, A2C, DQN) and their maskable variants, with time-aware data splits and a non-parametric statistical analysis suite.
 
-## Purpose
+The implementation is Nix-first. For cluster execution, the same environment is intended to be containerized with Apptainer (see `docs/workflow_hpc.md`).
 
-- host a clean, public-facing project structure;
-- collect finalized training/evaluation/statistics workflow components;
-- provide a stable entry point for documentation and artefacts;
-- support migration to a future GitHub Wiki-based documentation flow.
+## Highlights
 
-## Current Status
+- single repo for training, evaluation, aggregation, and statistics
+- time-aware split policy with holdout guardrails
+- Snakemake orchestration with smoke and full runs
+- reproducibility via Nix (pins Python + dependencies)
+- structured outputs with metadata sidecars for audit trails
 
-- consolidated pipeline code lives under `src/`;
-- docs scaffolding is in progress under `docs/`;
-- operational source of truth remains root `AGENTS.md` in the parent workspace.
+## Quickstart (Nix)
 
-## Planned Consolidation Scope
+```bash
+cd Project_Github
+nix develop
+just dry_run_smoke
+```
 
-This repo will eventually contain:
+## Key Commands
 
-- training entry points and configs;
-- evaluation and aggregation scripts;
-- statistical analysis scripts and outputs;
-- reproducibility documentation and runbooks;
-- migration-ready Snakemake workflow and profiles;
-- milestone-aligned presentation summaries and public references.
+Snakemake targets (via just):
 
-## Documentation Pack
+```bash
+just dry_run_smoke
+just run_smoke
+just run_full
+just run_full TRACE=deep_learn
+```
 
-See `docs/` for living documents that track:
+Direct script entrypoints:
 
-- methodology protocol;
-- split and leakage policy;
-- local workflow;
-- HPC workflow;
-- Snakemake pipeline;
-- reproducibility checklist;
-- Submission 2 evidence mapping.
+```bash
+python src/make_split.py --src physical_job
+python src/train_agents.py --algo maskable_a2c --trace splits/physical_job_dev70.tsv --seed 123456 --save_interval 1000 --total_saving 1
+python src/evaluate_agents.py --manifest logs/run_log.csv --output-dir result/physical_job/eval_runs
+python src/aggregate_results.py --manifest logs/run_log.csv --eval-root result/physical_job/eval_runs/runs --output-dir result/physical_job/aggregate
+python src/statistical_test.py --input result/physical_job/aggregate/seed_summary.csv --output-dir result/physical_job/stats
+```
 
-## Structure
+## Project Layout
 
 ```
 Project_Github/
-├── src/
-├── docs/
-├── data/
-└── presentations/
+├── src/                 # pipeline scripts + HPCsim + custom maskable algorithms
+├── docs/                # methodology, workflow, and reproducibility docs
+├── data/                # traces, topologies, splits (not committed)
+└── presentations/       # presentation artefacts
 ```
 
-## Migration Rule
+## Results (Coming Soon)
 
-Do not migrate partially defined workflow code.
+- primary metrics summary table (avg_waiting, avg_slowdown)
+- secondary metrics table (turnaround, utilization)
+- CD diagram inputs and plots
+- seed-level summary and statistical outputs
 
-Promote components into this repo only when they satisfy:
+When results land, this section will link to the generated artefacts and the evidence map in `docs/submission2_evidence_map.md`.
 
-- stable CLI and output contracts;
-- smoke-tested locally;
-- aligned with data governance and reproducibility rules;
-- documented in `docs/`.
+## Key Resources (Citations Pending)
 
-## Next Migration Milestone
+- HPCSim environment (Wang et al.)
+- stable-baselines3 (PPO, A2C, DQN)
+- sb3-contrib (MaskablePPO)
 
-- document Apptainer/Nix container strategy in `docs/workflow_hpc.md`;
-- add Snakemake Slurm profile and cluster submission notes;
-- export the DAG figure and reference it in `docs/methodology_protocol.md`;
-- keep root limited to `README.md`, `Snakefile`, `justfile`, `flake.nix` (plus future Apptainer/Slurm assets);
-- move any custom Nix code into a `nix/` directory (referenced from `flake.nix`).
+## Documentation Index
+
+- `docs/methodology_protocol.md`
+- `docs/data_split_policy.md`
+- `docs/workflow_local.md`
+- `docs/workflow_hpc.md`
+- `docs/snakemake_pipeline.md`
+- `docs/reproducibility_checklist.md`
+
+## Contact
+
+Justin M. Cheney — 4323819@myuwc.ac.za
