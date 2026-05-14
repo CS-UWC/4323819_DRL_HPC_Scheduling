@@ -46,7 +46,7 @@ import pandas as pd
 from scipy import stats
 import scikit_posthocs as sp
 
-from utils import (
+from src.utils import (
     ALGORITHMS,
     build_run_metadata,
     interpret_stat,

@@ -21,7 +21,7 @@ from typing import Any
 
 import pandas as pd
 
-from utils import (
+from src.utils import (
     ALGO_KEYS,
     CANON_KEYS,
     CORE_METRICS,

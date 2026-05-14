@@ -4,11 +4,11 @@ import pandas as pd
 import time
 import os
 
-from HPCsim.Cluster import *
-from HPCsim.Evaluator import *
-from HPCsim.Queue import *
-from HPCsim.Scheduler import *
-from HPCsim.Trace_Reader import *
+from src.HPCsim.Cluster import *
+from src.HPCsim.Evaluator import *
+from src.HPCsim.Queue import *
+from src.HPCsim.Scheduler import *
+from src.HPCsim.Trace_Reader import *
 import gymnasium as gym
 
 

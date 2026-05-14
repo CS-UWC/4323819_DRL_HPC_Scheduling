@@ -29,8 +29,8 @@ from typing import Any
 import numpy as np
 from torch import nn, manual_seed
 
-from HPCsim.HPCsim import HPCsim
-from utils import (
+from src.HPCsim.HPCsim import HPCsim
+from src.utils import (
     ALGORITHMS,
     ArgumentParserWithDefaults,
     build_train_metadata,

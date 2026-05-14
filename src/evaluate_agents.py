@@ -18,8 +18,8 @@ import numpy as np
 import pandas as pd
 from sb3_contrib.common.maskable.utils import get_action_masks
 
-from HPCsim.HPCsim import HPCsim
-from utils import (
+from src.HPCsim.HPCsim import HPCsim
+from src.utils import (
     ALGORITHMS,
     EvalResult,
     RunSpec,
@@ -135,12 +135,12 @@ def evaluate_one_run(
         if max_steps is not None and n_steps >= max_steps:
             break
         t_dec0 = time.perf_counter()
-    # TODO: Ensure use_masking matches training config; a mismatch changes policy behavior
-    # TODO: and corrupts treatment_id grouping in aggregation/stats.
-    # Ref: https://sb3-contrib.readthedocs.io/
-    if spec.use_masking:
-        action_masks = get_action_masks(env)
-        action, _ = model.predict(obs, deterministic=deterministic, action_masks=action_masks)
+        # TODO: Ensure use_masking matches training config; a mismatch changes policy behavior
+        # TODO: and corrupts treatment_id grouping in aggregation/stats.
+        # Ref: https://sb3-contrib.readthedocs.io/
+        if spec.use_masking:
+            action_masks = get_action_masks(env)
+            action, _ = model.predict(obs, deterministic=deterministic, action_masks=action_masks)
         else:
             action, _ = model.predict(obs, deterministic=deterministic)
         decision_latencies.append(time.perf_counter() - t_dec0)

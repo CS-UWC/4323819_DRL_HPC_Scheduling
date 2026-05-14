@@ -17,8 +17,8 @@ import pandas as pd
 from stable_baselines3 import PPO, DQN, A2C
 from sb3_contrib.ppo_mask import MaskablePPO
 
-from a2c_mask import MaskableA2C
-from dqn_mask import MaskableDQN
+from src.a2c_mask import MaskableA2C
+from src.dqn_mask import MaskableDQN
 
 
 # ---------------------------------------------------------------------------

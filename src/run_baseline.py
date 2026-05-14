@@ -28,7 +28,7 @@ def run_one(cfg: dict) -> dict:
     Returns: metrics dict with identifiers.
     """
     # Import inside worker
-    from HPCsim.HPCsim import HPCsim
+    from src.HPCsim.HPCsim import HPCsim
     selector   = cfg["selector"]
     allocator  = cfg["allocator"]
     partition  = cfg["partition"]
