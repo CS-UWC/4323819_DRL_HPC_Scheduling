@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -16,8 +17,8 @@ import pandas as pd
 from stable_baselines3 import PPO, DQN, A2C
 from sb3_contrib.ppo_mask import MaskablePPO
 
-from .a2c_mask import MaskableA2C
-from .dqn_mask import MaskableDQN
+from a2c_mask import MaskableA2C
+from dqn_mask import MaskableDQN
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +154,6 @@ ALGORITHMS = {
     "maskable_ppo": MaskablePPO,
 }
 
-# TRAD_ALGORITHMS: list[str] = ["lcfs", "sjf", "unicep"]
 TRAD_ALGORITHMS  = ["fcfs", "lcfs", "sjf", "wfp3", "unicep", "f_1", "f_2"]
 
 # Grouping keys for aggregation
@@ -411,17 +411,8 @@ def git_hash() -> str | None:
 
 
 def file_sha256(path: Path) -> str:
-    """
-    Return the SHA-256 hex digest of a file.
-    Used to fingerprint the manifest so results are traceable to an exact input.
-
-    Ref: https://docs.python.org/3/library/hashlib.html
-    """
-    h = hashlib.sha256()
     with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+        return hashlib.file_digest(f, "sha256").hexdigest()
 
 
 def build_run_metadata(
