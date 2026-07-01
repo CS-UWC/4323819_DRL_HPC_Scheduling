@@ -458,6 +458,7 @@ rule holdout_aggregate:
             --manifest {params.manifest} \
             --eval-root {params.eval_root} \
             --output-dir {params.output_dir} \
+            --no-strict \
             >> {log} 2>&1
         cp {params.output_dir}/algorithm_summary.csv {output.holdout_summary}
         """

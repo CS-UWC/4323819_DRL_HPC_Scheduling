@@ -56,12 +56,28 @@ conda install --file requirements.txt
 
 ## Running the Pipeline
 
-The full workflow is managed by [Snakemake](https://snakemake.readthedocs.io) and wrapped in a `justfile` for convenience. See [`docs/workflow_local.md`](docs/workflow_local.md) for local runs and [`docs/workflow_hpc.md`](docs/workflow_hpc.md) for SLURM/HPC execution.
+The full workflow is managed by [Snakemake](https://snakemake.readthedocs.io) and orchestrated through [`just`](https://just.systems) — a command runner that wraps the verbose Snakemake invocations into short, memorable commands. No need to remember `--configfile`, `--profile`, or `--cores` flags.
 
-```bash
-just run_smoke          # smoke test (local, ~200 steps)
-just run_full_slurm     # full pipeline via SLURM
-```
+### Local
+
+| Command | Description |
+|---------|-------------|
+| `just dry_run_smoke` | Validate the smoke DAG without running any jobs |
+| `just run_smoke` | Smoke test — fast end-to-end validation (~200 steps) |
+| `just run_full` | Full pipeline: train → eval → aggregate → stats |
+| `just clean` | Remove outputs; preserve logs |
+| `just clean_all` | Remove all outputs including logs (full reset) |
+
+### Cluster (SLURM)
+
+| Command | Description |
+|---------|-------------|
+| `just dry_run_slurm` | Validate the production DAG for cluster submission |
+| `just dry_run_smoke_slurm` | Validate the smoke DAG for cluster submission |
+| `just run_smoke_slurm` | Submit smoke test to SLURM |
+| `just run_full_slurm` | Submit full pipeline to SLURM |
+
+Run `just help` to see all available targets.
 
 ---
 
