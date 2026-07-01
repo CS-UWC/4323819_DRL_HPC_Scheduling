@@ -490,8 +490,9 @@ rule baseline:
               --result-dir {params.output_dir} \
               --manifest-path {params.manifest_path} \
               --force \
-              >> {log} 2>&1
+              >> {log} 2>&1 &
         done
+        wait
         touch {output.baseline_meta}
         """
 
