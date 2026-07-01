@@ -20,6 +20,7 @@ Only one of the following is needed to get started — the rest of the environme
 | **pip** | Python ≥ 3.11 |
   
 </div>
+
 ---
 
 ## Setup
