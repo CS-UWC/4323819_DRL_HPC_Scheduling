@@ -19,7 +19,7 @@ container: "DRL_env.sif"
 trace_name: "physical_job"         # "physical_job" | "deeplearn_job" (must match data/<trace_name>.csv)
 
 # --- Seeds -------------------------------------------------------------------
-seeds: [210169, 250564, 20603, 170797, 21095]   # 5 seeds for production
+seeds: [210169, 250564, 20603, 170797, 21095, 21385, 16843, 45765, 57434, 35474]   # 5 seeds for production
 
 # --- Algorithms --------------------------------------------------------------
 algorithms:
