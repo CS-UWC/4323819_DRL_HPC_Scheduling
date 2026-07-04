@@ -297,7 +297,11 @@ def build_training_env(
             )
         )
 
-    use_vec = n_envs > 1 and "dqn" not in algorithm.lower()
+    # Every algorithm (DQN included) collects from a VecEnv when n_envs > 1.
+    # Single-env DQN was throughput-bound on the L4s (the HPCsim per-step obs
+    # build is the wall), and MaskableDQN/SB3 DQN both support multi-env
+    # collection (support_multi_env=True), so vectorize it too.
+    use_vec = n_envs > 1
     if use_vec:
         from stable_baselines3.common.vec_env import SubprocVecEnv
         return SubprocVecEnv([lambda r=i: _make_env(r) for i in range(n_envs)])
@@ -404,7 +408,13 @@ def train_and_log(
         "total_timesteps": total_timesteps,
         "tb_log_name": name,
         "callback": SelectorCheckpointCallback(
-            save_freq=save_interval,
+            # CheckpointCallback counts callback CALLS, not env-steps: with a
+            # 20-env SubprocVecEnv one call advances n_envs steps, so save_freq
+            # must be divided by n_envs to keep the cadence in env-steps (SB3
+            # docs). Without this, on-policy n_calls maxes at total/n_envs and
+            # never reaches save_freq → zero checkpoints saved. DQN is single-env
+            # (n_envs=1) → unchanged.
+            save_freq=max(save_interval // getattr(model, "n_envs", 1), 1),
             save_path=str(selector_dir),
         ),
     }
@@ -417,7 +427,12 @@ def train_and_log(
 
     episodes_completed = int(model._episode_num)
 
+    # Persist the final model explicitly at the exact path the manifest and
+    # evaluator expect. The checkpoint callback alone is not enough: PPO
+    # overshoots total_timesteps to a full-rollout boundary, and any cadence
+    # mismatch would leave no final model. This is the file eval loads.
     model_path = str(selector_dir / f"{total_timesteps}.zip")
+    model.save(model_path)
 
     run_id = write_manifest_entry(
         treatment_id=treatment_id,

@@ -52,7 +52,7 @@ Use this file as the canonical methodology specification for Submission 2.
 ## 5. Training Protocol
 
 - Timesteps per run: total steps = `save_interval × total_saving`. Production: `100000 × 30 = 3M`. Smoke: `100 × 2 = 200`.
-- Seed set: fixed seed for smoke reproducibility (e.g. `123456`); production uses 5 seeds (`config.yaml`).
+- Seed set: fixed seed for smoke reproducibility (e.g. `123456`); production uses 10 seeds (`config.yaml`).
 - Hyperparameter source: `config.yaml` (`batch_size`, `n_epochs`, `learning_rate`, `n_envs`, `window_size`, `tail_size`, `buffer_size`).
 - Checkpoint cadence: every `save_interval` steps to `trained_model/<trace>/<seed>/<algo>/selector/<step>.zip`.
 - Logging: manifest row per run in `logs/run_log.csv`; per-rule logs under `logs/snakemake/<trace>/`.

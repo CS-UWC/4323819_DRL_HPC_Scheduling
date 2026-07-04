@@ -205,13 +205,15 @@ rule train_agent:
         seed=r"\d+",
         algo="|".join(ALGORITHMS),
     resources:
-        # Per-algorithm right-sizing: DQN is single-env with a big replay buffer (RAM-heavy, few cores);
-        # PPO/A2C run 20 SubprocVecEnv workers (core-heavy) but no replay buffer (float32 rollout ~9 GB).
-        mem_mb=lambda wildcards: 98304 if "dqn" in wildcards.algo else 49152,  # DQN: 150k float32 replay (~66 GB) + model/CUDA/env → 96 GB. Non-DQN: rollout + 20 env workers → 48 GB (~2x margin). 128 GB nodes.
-        runtime=720,    # 12 h ceiling (partition max 14 h): PPO ~5.2 h; A2C is update-bound (SB3 n_steps=5 → a grad step every ~100 env steps at n_envs=20) and runs much longer, so give it generous headroom.
+        # Uniform sizing: every algorithm now runs N_ENVS SubprocVecEnv workers —
+        # DQN included. Single-env DQN was throughput-bound on the L4s (HPCsim's
+        # per-step obs build is the wall); MaskableDQN/SB3 DQN both support
+        # multi-env collection, so all algorithms share one resource profile.
+        mem_mb=125000,   # 125 GB of the 128 GB nodes: DQN's 150k float32 replay (~66 GB) + 20 env workers (~40 GB) ≈ 106 GB. On-policy needs far less but shares the uniform request (1 job/node, GPU-bound).
+        runtime=720,     # 12 h ceiling kept as safety; with 20-env collection + TF32 (already on) every algorithm is expected to finish < 5 h.
         slurm_partition="main",
         gres="gpu:1",
-        cpus_per_task=lambda wildcards: 4 if "dqn" in wildcards.algo else N_ENVS + 1,  # DQN single-env (~1-4 cores); PPO/A2C use 20 SubprocVecEnv workers + 1 main.
+        cpus_per_task=N_ENVS + 1,   # 20 SubprocVecEnv workers + 1 main, all algorithms.
     params:
         save_interval=SAVE_INTERVAL,
         total_saving=TOTAL_SAVING,

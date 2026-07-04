@@ -47,6 +47,20 @@ rollout-bound. Options if it recurs: raise `runtime` (if the partition's max
 wall-time allows), or raise A2C `n_steps` to reduce update frequency (note: this
 changes learning dynamics, so keep it consistent across seeds for fairness).
 
+## Checkpoint save_freq must account for n_envs (silent no-save on on-policy)
+
+On-policy jobs (PPO/A2C) reported `[DONE]` yet left empty model folders. Root
+cause: SB3's `CheckpointCallback` counts *callback calls*, not environment steps,
+and with a 20-env `SubprocVecEnv` one call advances `n_envs` steps. Passing
+`save_freq=save_interval` (in env-steps) therefore meant the callback's call
+counter only reached `total_timesteps / n_envs` and never hit `save_freq`, so
+**zero** checkpoints were written — and there was no explicit final save. DQN
+(single-env) was unaffected, which is why only the on-policy folders were empty.
+Fix: (1) `save_freq = max(save_interval // n_envs, 1)` so cadence is in env-steps
+for every algorithm, and (2) an explicit `model.save()` of the final model at the
+manifest path after `learn()` — robust to PPO overshooting `total_timesteps` to a
+full-rollout boundary. This is the file the evaluator loads.
+
 ## Reproducibility niceties
 
 - `PYTHONUNBUFFERED=1` is exported in the train rule so a hard crash (e.g. an

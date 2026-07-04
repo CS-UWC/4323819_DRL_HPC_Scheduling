@@ -57,8 +57,8 @@ or directly:
 snakemake --configfile config.yaml --profile profiles/slurm
 ```
 
-Production scale (`config.yaml`): 5 seeds × 6 algorithms = 30 training jobs +
-30 eval jobs, 3M steps each (`save_interval=100000 × total_saving=30`),
+Production scale (`config.yaml`): 10 seeds × 6 algorithms = 60 training jobs +
+60 eval jobs, 3M steps each (`save_interval=300000 × total_saving=10`),
 `n_envs=20`. `train_agent` requests a GPU (`gres=gpu:1`) and `n_envs+1` cores;
 a 3M run completes in ~5–6 h.
 

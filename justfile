@@ -92,7 +92,7 @@ ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
 
 @run_full:
     echo "Running full production pipeline on {{TRACE}}..."
-    echo "Config: config.yaml (5 seeds, 3M timesteps)"
+    echo "Config: config.yaml (10 seeds, 3M timesteps)"
     snakemake \
         --configfile config.yaml \
         --config trace_name={{TRACE}} \
