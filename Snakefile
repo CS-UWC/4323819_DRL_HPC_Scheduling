@@ -277,16 +277,22 @@ rule eval_run:
         algo="|".join(ALGORITHMS),
     resources:
         mem_mb=8000,
-        # Eval is a single-env, full-trace deterministic pass — the same Python
-        # per-step obs-build wall as ONE training worker, no 20-env parallelism.
-        # A dev70 pass is ~59k steps; maskable adds a get_action_masks per step
-        # and empirically blew BOTH 60 and 240 min ceilings with an empty log.
-        # The loop now prints a steps/s heartbeat every 2k steps (unbuffered
-        # below), so the log reveals fps and a hang is no longer mistaken for a
-        # timeout. No GPU: the env build is the wall, not the forward pass. 480 =
-        # headroom for slow maskable; tune from the heartbeat / eval_wall_s.
-        runtime=480,
+        # Per-step cost is forward-pass-bound, not env-bound: on the identical dev70
+        # env PPO ran ~34.6 steps/s but DQN only ~18 (a 2x gap the shared env rebuild
+        # can't cause) — the batch-1 pass streams the 230M-param first layer (~920 MB)
+        # every step, memory-bandwidth-bound on CPU. HYBRID placement, because only
+        # ~2-3 GPU nodes are typically free (shared with other projects): the DQN
+        # family is slow enough that a ~1M+ step episode would exceed the 14 h wall on
+        # CPU, so it gets the GPU (SB3.load() device="auto" -> CUDA, no code change);
+        # PPO/A2C and their maskable variants are fast enough to finish full-trace
+        # within 14 h on CPU, so they run on any of the 10 nodes (incl. the 6 CPU-only
+        # ones training can't use) and don't compete for the scarce GPUs. If a CPU
+        # algo grazes the ceiling, widen the predicate to send it to GPU too. runtime
+        # = 14 h partition max (episodes are ~1M+ steps). Plugin (v2.7.1) skips a
+        # falsy gres, so "" == no GPU request.
+        runtime=840,
         slurm_partition="main",
+        gres=lambda wildcards: "gpu:1" if "dqn" in wildcards.algo else "",
     params:
         manifest="logs/run_log.csv",
         eval_root=f"result/{TRACE_NAME}/eval_runs",
@@ -422,12 +428,13 @@ rule holdout_eval:
         seed=r"\d+",
     resources:
         mem_mb=8000,
-        # One holdout30 pass (~25k steps) per seed: the 10 seeds now run as
-        # parallel jobs, replacing the old single job that serialised all 10
-        # and blew this ceiling. Same slow-maskable risk as eval_run, so 480
-        # with the same steps/s heartbeat in the log. Winner is read per job.
-        runtime=480,
+        # One holdout30 pass per seed (10 seeds run as parallel jobs). Same
+        # forward-pass-bound profile as eval_run, so the same fix: request a GPU
+        # (SB3.load() device="auto" moves inference to CUDA) and raise the ceiling
+        # to the 14 h partition max. Winner is read per job.
+        runtime=840,
         slurm_partition="main",
+        gres="gpu:1",
     params:
         manifest="logs/run_log.csv",
         holdout_root=f"result/{TRACE_NAME}/holdout",

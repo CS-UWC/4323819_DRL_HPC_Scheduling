@@ -189,9 +189,21 @@ def evaluate_one_run(
         # SB3 log table, so without this the log is empty until [OK] and a
         # timeout is indistinguishable from a hang. Gives live steps/s to
         # right-size the eval_run runtime. flush so it survives a SIGKILL.
+        # Also emit jobs-completed and the running primary-metric means so ONE
+        # full run reveals where avg_waiting/avg_slowdown converge vs jobs
+        # processed — the empirical basis for a principled eval cap (cap by JOBS,
+        # not decision steps, since steps/job is policy-dependent). The means are
+        # O(jobs) per call, so recompute them at a coarser 20k cadence to keep
+        # the overhead negligible.
         if n_steps % 2000 == 0:
             el = time.perf_counter() - t_start
-            print(f"[{spec.run_id}] {n_steps} steps, {el:.0f}s, {n_steps / el:.1f} steps/s", flush=True)
+            jobs = len(env.evaluator.completed_job)
+            msg = f"[{spec.run_id}] {n_steps} steps, {jobs} jobs, {el:.0f}s, {n_steps / el:.1f} steps/s"
+            if n_steps % 20000 == 0:
+                wt = env.evaluator.waiting_time() or (0.0, 0.0)
+                sd = env.evaluator.bounded_slowdown() or (0.0, 0.0)
+                msg += f", avg_wait={wt[1]:.1f}, avg_slowdown={sd[1]:.3f}"
+            print(msg, flush=True)
 
     eval_wall_s = time.perf_counter() - t_start
     max_w, avg_w = safe_metric_access(

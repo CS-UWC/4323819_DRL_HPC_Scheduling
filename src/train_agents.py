@@ -368,11 +368,15 @@ def build_model(
     if "ppo" in algorithm.lower():
         model_kwargs["n_epochs"] = n_epochs
 
-    # A2C entropy floor. With the default ent_coef=0.0 on the ~230M-param
-    # [4096,2048,1024] net, the policy saturated to ~0 entropy within 20k steps;
-    # RMSprop (eps=1e-5) then amplified the near-zero gradients into non-finite
-    # logits and MaskableCategorical failed the Simplex() check. 0.01 (SB3's own
-    # A2C example value) keeps entropy up and prevents the collapse. A2C-only.
+    # A2C entropy floor (experiment hyperparameter). On the ~230M-param
+    # [4096,2048,1024] net the default ent_coef=0.0 let maskable_a2c saturate to
+    # ~0 entropy and, together with a non-standard advantage normalization, diverge
+    # to non-finite logits (MaskableCategorical Simplex() crash). ent_coef=0.01
+    # (SB3's own A2C example value) keeps entropy up; this is a tuning choice for
+    # our config, so it lives here with the other hyperparameters rather than in
+    # the algorithm class. The paired fix — the real driver — is at its source:
+    # a2c_mask.py now defaults normalize_advantage=False (canonical A2C), so no
+    # override is needed here. A2C-only (PPO/DQN have no analogue).
     if "a2c" in algorithm.lower():
         model_kwargs["ent_coef"] = 0.01
 

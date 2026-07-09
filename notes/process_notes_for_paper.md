@@ -50,33 +50,43 @@ too tight and produced empty logs (SIGKILL discards buffered stdout), which is
 why the ceiling was raised to 720. A per-algorithm `n_steps` increase was
 diagnosed as a contingency but not needed (see `training_performance.md §3`).
 
-## A2C needed an entropy floor to stay numerically stable
+## A2C numerical stability: entropy floor + reverting non-standard advantage normalization
 
-A `maskable_a2c` seed crashed at ~20k steps with a `MaskableCategorical`
-`Simplex()` violation — the distribution's probabilities no longer summed to one
-because the policy logits had gone non-finite. Diagnosis: with the default
-`ent_coef=0.0`, the policy saturated to ~zero entropy within 20k steps on the
-~230M-parameter `[4096,2048,1024]` first layer (visible as `entropy_loss ≈ 0` and
-all losses collapsing to ~1e-7). A2C optimises with RMSprop (`eps=1e-5`), whose
-update `lr·g/(√v + eps)` amplifies the resulting near-zero gradients: the running
-variance decays, a gradient spike is divided by an almost-zero denominator, and
-the weights take a divergent step that pushes the logits to `±inf`/`NaN`. The next
-masked softmax then cannot lie on the simplex and PyTorch raises. Only an occasional
-seed triggered it, but because training is seeded the failure is deterministic for
-that seed (a plain rerun reproduces it), so it needed a fix rather than a retry.
-Fix: enable a small entropy bonus, **`ent_coef=0.01`** (the value SB3's own A2C
-example uses), in the A2C construction path (`a2c` and `maskable_a2c`), which keeps
-entropy up and prevents the collapse. It is a cheap guard against a rare
-divergence, not a correction to a pervasive problem. Operationally the A2C cohort
-is **mixed by design**: only the run that diverged was retrained under the floor,
-because rerunning it was already required (it had crashed); the other A2C seeds,
-which never diverged, were left as trained with the default `ent_coef=0.0` rather
-than re-burning stable runs. The coefficient is small enough that it does not
-materially change A2C's behaviour on the runs that were already stable, so the
-floor functions as a targeted stabiliser for the seed that needed it rather than a
-cohort-wide objective change. Applied only to A2C — PPO and DQN never exhibited
-the divergence. The masking was not implicated: an explicit all-false-mask guard
-(`a2c_mask.py`) did not trigger.
+A `maskable_a2c` seed crashed with a `MaskableCategorical` `Simplex()` violation —
+the distribution's probabilities no longer summed to one because the policy logits
+had gone non-finite. Two coupled causes, fixed together:
+
+**1. Entropy collapse (`ent_coef=0.0`).** On the ~230M-parameter `[4096,2048,1024]`
+first layer the policy saturated to ~zero entropy within 20k steps (`entropy_loss
+≈ 0`, all losses ~1e-7). Adding **`ent_coef=0.01`** (the value SB3's own A2C example
+uses) keeps entropy up. This was necessary but *not sufficient*: with the bonus the
+run survived to ~110k steps and then crashed the same way, so entropy was not the
+whole story.
+
+**2. Non-standard advantage normalization (the real driver).** `a2c_mask.py`
+defaults `normalize_advantage=True` — normalization that stock SB3 A2C does **not**
+perform (the source even comments it as "not present in the original
+implementation"). Over A2C's tiny 100-sample rollout (`n_steps=5 × 20 envs`), once
+the value function fits well (`explained_variance ≈ 0.83`) the true advantages are
+~0, so `(adv − mean) / (std + 1e-8)` divides near-zero residuals by a near-zero std
+and **rescales pure noise to unit scale**. The policy then takes a full-strength
+gradient step on noise every update; the value fit collapses (`explained_variance`
+fell `0.83 → 0.0001` in 100 iterations) and the logits diverge to `NaN`. This is
+precisely why stock A2C keeps `normalize_advantage=False`. Fix: correct the
+`MaskableA2C` default at its source — `a2c_mask.py`'s `normalize_advantage` default
+is changed from `True` to `False`, matching canonical A2C. This is a return to the
+standard algorithm, not a new hyperparameter, and it is `maskable_a2c`-specific —
+stock `a2c` (SB3's own `A2C`) already defaults to `False`, which is why only the
+maskable variant diverged.
+
+The two fixes live at the layer each belongs to. `ent_coef=0.01` is a tuning choice
+for this config, so it is set on the A2C construction path (`a2c` and `maskable_a2c`)
+alongside the other hyperparameters; the advantage-normalization fix is a defect in
+the custom class, so it is corrected as that class's default (no per-run override).
+PPO normalizes over large minibatches (stable) and DQN has no analogue. The masking
+itself was not implicated: an explicit all-false-mask guard (`a2c_mask.py`) never
+triggered. Because training is seeded the failure is deterministic per seed, so it
+needed a fix rather than a retry.
 
 ## Checkpoint save_freq must account for n_envs (silent no-save on on-policy)
 
@@ -105,12 +115,31 @@ buffered stdout, the log was **empty**, indistinguishable from a hang. Two ceili
 guesses failed for want of a measured rate, so the loop now prints a `steps/s`
 heartbeat every 2k steps (flushed, rule exports `PYTHONUNBUFFERED=1`): the log
 reveals the real throughput and a stall is no longer mistaken for a slow pass.
-`runtime` raised to **480** with that headroom; tune from the heartbeat /
-`eval_wall_s`. No GPU is requested — the wall is the environment rebuild, not the
-policy forward pass, so a GPU would only idle and block the scarce training GPUs.
-The holdout evaluation has the same per-pass cost and originally bundled all seeds
-of the winning algorithm into one serial job; it was split into one job per seed
-(parallel) and carries the same heartbeat and 480 ceiling. Each run records
+
+The heartbeat then overturned an earlier assumption. It showed the episodes are
+**far larger than the ~59k job count** (≈1M+ decision steps — the env's MDP takes
+many advance/no-op steps per scheduled job) and, decisively, that on the *identical*
+dev70 environment PPO ran at **~34.6 steps/s while DQN ran at ~18** — a 2× gap that
+the shared environment rebuild cannot explain. The per-step cost is therefore
+dominated by the **policy forward pass**: a single batch-1 pass streams the
+`56,090 × 4096 ≈ 230M`-weight first layer (~920 MB of float32) from memory every
+step, which is memory-bandwidth-bound on CPU. This contradicted the initial "no
+GPU, the env is the wall" choice. The GPU (L4, ~10× the memory bandwidth) attacks
+exactly this cost, and `SB3.load()` uses `device="auto"` so inference moves to CUDA
+with no code change. But the cluster has only 4 GPU nodes (≈2–3 typically free,
+shared with other projects), so putting *all* eval on GPU would serialise it onto a
+few nodes and leave the 6 CPU-only nodes idle. Fix: a **hybrid placement** — only the
+**DQN family** (whose ~18 steps/s over a ~1M+ step episode would exceed the wall on
+CPU) requests a GPU; **PPO/A2C and their maskable variants** (fast enough to finish
+full-trace within the ceiling on CPU) run CPU-only, so they use the otherwise-idle
+CPU nodes and do not compete for the scarce GPUs. With ~1M+ step episodes the old
+`runtime=480` (8 h) killed evals mid-pass, so the ceiling was raised to the **14 h
+partition max (840 min)** — a hard wall (eval has no resume). The heartbeat also emits
+jobs-completed and the running `avg_waiting`/`avg_slowdown` so a single full run shows
+where the metrics converge, in case a length cap is later needed. The holdout
+evaluation has the same per-pass profile; it was split into one job per seed
+(parallel) and keeps a GPU request (the winning algorithm is unknown at DAG-build
+time and it is only 10 jobs) plus the same heartbeat and 840 ceiling. Each run records
 `eval_wall_s` in its metrics file.
 
 ## Only the final checkpoint is kept (scratch capacity)

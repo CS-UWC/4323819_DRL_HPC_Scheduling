@@ -109,7 +109,7 @@ class MaskableA2C(OnPolicyAlgorithm):
         sde_sample_freq: int = -1,
         rollout_buffer_class: type[RolloutBuffer] | None = None,
         rollout_buffer_kwargs: dict[str, Any] | None = None,
-        normalize_advantage: bool = True,
+        normalize_advantage: bool = False,
         stats_window_size: int = 100,
         tensorboard_log: str | None = None,
         policy_kwargs: dict[str, Any] | None = None,
@@ -341,7 +341,13 @@ class MaskableA2C(OnPolicyAlgorithm):
 
             values = values.flatten()
 
-            # Normalize advantage (not present in the original implementation)
+            # Advantage normalization. NOT part of stock SB3 A2C (which defaults
+            # normalize_advantage=False). Over A2C's tiny n_steps rollout, once the
+            # value fits and true advantages are ~0, normalizing divides near-zero
+            # residuals by a near-zero std and rescales pure noise to unit scale,
+            # which drove maskable_a2c to NaN logits (Simplex() crash). Default is
+            # now False to match canonical A2C; kept behind the flag for large-batch
+            # configs where normalization is safe.
             advantages = rollout_data.advantages
             if self.normalize_advantage:
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
