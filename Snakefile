@@ -90,6 +90,16 @@ TRACE_TO_PARTITION = {
     "deeplearn_job": "deeplearn",
 }
 
+# Topology is selected by trace, NOT by a static config value. The two traces
+# schedule against disjoint machine sets (physical_job -> spartan-bm nodes,
+# deeplearn_job -> spartan-gpgpu nodes). A hard-coded config["topology_file"]
+# silently ran deeplearn on the physical topology, so the scheduler could never
+# place a job and every episode collapsed in ~30 steps. Deriving it here can't drift.
+TRACE_TO_TOPOLOGY = {
+    "physical_job": "physical_topology.txt",
+    "deeplearn_job": "deeplearn_topology.txt",
+}
+
 configfile: "config.yaml"
 
 container: config.get("container", "DRL_env.sif")
@@ -104,7 +114,7 @@ TOTAL_SAVING = config["total_saving"]
 WINDOW_SIZE = config.get("window_size", 512)
 TAIL_SIZE = config.get("tail_size", 64)
 BUFFER_SIZE = config.get("buffer_size", 100_000)
-TOPOLOGY_FILE = config["topology_file"]
+TOPOLOGY_FILE = TRACE_TO_TOPOLOGY[TRACE_NAME]
 NODE_FILE = config["node_file"]
 ALPHA = config["alpha"]
 EVAL_MAX_STEPS = config.get("eval_max_steps", None)

@@ -1,9 +1,12 @@
 # =============================================================================
 # justfile — DRLScheduler Pipeline Commands
 # =============================================================================
-# Usage: just <target>
-# Example: just run_smoke
-# Example: just run_full TRACE=deeplearn_job
+# Usage: just <target> [trace]
+# The trace arg accepts the short form (physical | deeplearn) or the full
+# trace_name (physical_job | deeplearn_job); both normalise to <name>_job.
+# Defaults to physical when omitted.
+# Example: just run_full_slurm deeplearn
+# Example: just run_smoke physical
 # Ref: https://just.systems/man/en/
 # =============================================================================
 
@@ -16,11 +19,8 @@ cpu_count := if os() == "linux" {
     "4"
 }
 
-# Trace name override (just run_full TRACE=deeplearn_job)
-TRACE := env_var_or_default("TRACE", "physical_job")
-
 # Where `archive_results` copies analysis outputs + all algorithms' final models
-# off scratch into safe (home) storage. Override: just archive_results ARCHIVE=/path
+# off scratch into safe (home) storage. Override: just archive_results deeplearn ARCHIVE=/path
 ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
 
 # =============================================================================
@@ -30,27 +30,29 @@ ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
 @help:
     echo "DRLScheduler Snakemake Pipeline — justfile Targets"
     echo ""
+    echo "Most targets take a trace argument: physical (default) | deeplearn"
+    echo ""
     echo "PIPELINE TARGETS:"
-    echo "  dry_run_smoke        - Validate smoke DAG without execution"
-    echo "  dry_run              - Validate production DAG without execution"
-    echo "  run_smoke            - Smoke test (fast end-to-end validation)"
-    echo "  run_full             - Full pipeline (train → eval → aggregate → stats → baseline → holdout)"
-    echo "  run_baseline         - Run baseline scheduler only"
+    echo "  dry_run_smoke [trace]   - Validate smoke DAG without execution"
+    echo "  dry_run [trace]         - Validate production DAG without execution"
+    echo "  run_smoke [trace]       - Smoke test (fast end-to-end validation)"
+    echo "  run_full [trace]        - Full pipeline (train → eval → aggregate → stats → baseline → holdout)"
+    echo "  run_baseline [trace]    - Run baseline scheduler only"
     echo ""
     echo "DAG EXPORT TARGETS:"
-    echo "  export_dag           - Export both detail + overview DAGs"
-    echo "  export_dag_detail    - Export job-level DAG (detailed)"
-    echo "  export_dag_overview  - Export rule-level DAG (clean)"
+    echo "  export_dag [trace]          - Export both detail + overview DAGs"
+    echo "  export_dag_detail [trace]   - Export job-level DAG (detailed)"
+    echo "  export_dag_overview [trace] - Export rule-level DAG (clean)"
     echo ""
     echo "SLURM TARGETS:"
-    echo "  dry_run_smoke_slurm  - Validate smoke DAG for cluster"
-    echo "  dry_run_slurm        - Validate production DAG for cluster"
-    echo "  run_smoke_slurm      - Submit smoke test to SLURM"
-    echo "  run_full_slurm       - Submit full pipeline to SLURM"
-    echo "  setup_scratch        - Redirect outputs to /scratch/\$USER (run once per clone)"
-    echo "  archive_results      - Copy results + ALL final models off scratch to \$HOME/drl_archive"
-    echo "  slurm_report         - Generate efficiency report after run"
-    echo "  build_sif            - Build Apptainer .sif from Nix flake"
+    echo "  dry_run_smoke_slurm [trace] - Validate smoke DAG for cluster"
+    echo "  dry_run_slurm [trace]       - Validate production DAG for cluster"
+    echo "  run_smoke_slurm [trace]     - Submit smoke test to SLURM"
+    echo "  run_full_slurm [trace]      - Submit full pipeline to SLURM"
+    echo "  setup_scratch               - Redirect outputs to /scratch/\$USER (run once per clone)"
+    echo "  archive_results [trace]     - Copy results + ALL final models off scratch to \$HOME/drl_archive"
+    echo "  slurm_report                - Generate efficiency report after run"
+    echo "  build_sif                   - Build Apptainer .sif from Nix flake"
     echo ""
     echo "MAINTENANCE:"
     echo "  clean                - Remove all outputs except data and logs"
@@ -58,82 +60,92 @@ ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
     echo "  nix_develop          - Enter Nix shell"
     echo ""
     echo "EXAMPLES:"
-    echo "  just run_smoke                         # Quick smoke test on physical_job"
-    echo "  just run_full                          # Full run on physical_job"
-    echo "  just run_full TRACE=deeplearn_job      # Full run on deeplearn_job"
-    echo "  just export_dag                        # Export DAGs before running"
-    echo "  just dry_run_smoke                     # Check DAG resolves correctly"
+    echo "  just run_smoke                     # Quick smoke test on physical"
+    echo "  just run_full deeplearn            # Full run on deeplearn"
+    echo "  just run_full_slurm deeplearn      # Full SLURM run on deeplearn"
+    echo "  just export_dag physical           # Export DAGs before running"
     echo ""
 
 # =============================================================================
 # VALIDATION TARGETS
 # =============================================================================
 
-@dry_run_smoke:
-    echo "Validating smoke DAG (no execution)..."
-    snakemake --configfile config.smoke.yaml --dry-run --quiet
+dry_run_smoke trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Validating smoke DAG (no execution) on ${t}..."
+    snakemake --configfile config.smoke.yaml --config trace_name="${t}" --dry-run --quiet
 
-@dry_run:
-    echo "Validating production DAG (no execution)..."
-    snakemake --configfile config.yaml --dry-run --quiet
+dry_run trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Validating production DAG (no execution) on ${t}..."
+    snakemake --configfile config.yaml --config trace_name="${t}" --dry-run --quiet
 
 # =============================================================================
 # PIPELINE TARGETS
 # =============================================================================
 
-@run_smoke:
-    echo "Running smoke test pipeline on {{TRACE}}..."
+run_smoke trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Running smoke test pipeline on ${t}..."
     echo "Config: config.smoke.yaml (2 seeds, 200 timesteps, max-steps=5)"
-    snakemake \
-        --configfile config.smoke.yaml \
-        --config trace_name={{TRACE}} \
-        --cores {{cpu_count}} 
-    echo "✓ Smoke test complete. Outputs in result/{{TRACE}}/"
+    snakemake --configfile config.smoke.yaml --config trace_name="${t}" --cores {{cpu_count}}
+    echo "✓ Smoke test complete. Outputs in result/${t}/"
 
-@run_full:
-    echo "Running full production pipeline on {{TRACE}}..."
+run_full trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Running full production pipeline on ${t}..."
     echo "Config: config.yaml (10 seeds, 3M timesteps)"
-    snakemake \
-        --configfile config.yaml \
-        --config trace_name={{TRACE}} \
-        --cores {{cpu_count}}
-    echo "✓ Full pipeline complete. Outputs in result/{{TRACE}}/"
+    snakemake --configfile config.yaml --config trace_name="${t}" --cores {{cpu_count}}
+    echo "✓ Full pipeline complete. Outputs in result/${t}/"
 
-@run_baseline:
-    echo "Running baseline scheduler (FCFS + best_fit) on {{TRACE}}..."
-    snakemake \
-        --configfile config.yaml \
-        --config trace_name={{TRACE}} \
-        --cores {{cpu_count}} \
-        result/{{TRACE}}/baseline/baseline_metadata.json
-    echo "✓ Baseline complete. Outputs in result/{{TRACE}}/baseline/"
+run_baseline trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Running baseline scheduler (FCFS + best_fit) on ${t}..."
+    snakemake --configfile config.yaml --config trace_name="${t}" --cores {{cpu_count}} result/"${t}"/baseline/baseline_metadata.json
+    echo "✓ Baseline complete. Outputs in result/${t}/baseline/"
 
 # =============================================================================
 # SLURM CLUSTER TARGETS
 # =============================================================================
 
-@dry_run_smoke_slurm:
-    echo "Validating smoke DAG for cluster (no execution)..."
-    snakemake --configfile config.smoke.yaml --profile profiles/slurm --dry-run --quiet
+dry_run_smoke_slurm trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Validating smoke DAG for cluster (no execution) on ${t}..."
+    snakemake --configfile config.smoke.yaml --config trace_name="${t}" --profile profiles/slurm --dry-run --quiet
 
-@dry_run_slurm:
-    echo "Validating production DAG for cluster (no execution)..."
-    snakemake --configfile config.yaml --profile profiles/slurm --dry-run --quiet
+dry_run_slurm trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Validating production DAG for cluster (no execution) on ${t}..."
+    snakemake --configfile config.yaml --config trace_name="${t}" --profile profiles/slurm --dry-run --quiet
 
-@run_smoke_slurm:
-    echo "Submitting smoke test to SLURM on {{TRACE}}..."
-    snakemake \
-        --configfile config.smoke.yaml \
-        --config trace_name={{TRACE}} \
-        --profile profiles/slurm
+run_smoke_slurm trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Submitting smoke test to SLURM on ${t}..."
+    snakemake --configfile config.smoke.yaml --config trace_name="${t}" --profile profiles/slurm
     echo "✓ Smoke jobs submitted. Check squeue for status."
 
-@run_full_slurm:
-    echo "Submitting full pipeline to SLURM on {{TRACE}}..."
-    snakemake \
-        --configfile config.yaml \
-        --config trace_name={{TRACE}} \
-        --profile profiles/slurm
+run_full_slurm trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Submitting full pipeline to SLURM on ${t}..."
+    snakemake --configfile config.yaml --config trace_name="${t}" --profile profiles/slurm
     echo "✓ Full pipeline submitted. Check squeue for status."
 
 # One-time per clone (re-run after clean_all, which removes the dirs): redirect
@@ -144,8 +156,11 @@ setup_scratch:
 
 # Copy analysis outputs and ALL algorithms' final models off scratch into safe
 # home storage. Run ONCE at the end, after select_best decides the winner.
-@archive_results:
-    ./src/archive_results.sh "{{TRACE}}" "{{ARCHIVE}}"
+archive_results trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    ./src/archive_results.sh "${t}" "{{ARCHIVE}}"
 
 @slurm_report:
     echo "Generating SLURM efficiency report..."
@@ -155,55 +170,49 @@ setup_scratch:
     echo "Building Apptainer .sif from Nix flake..."
     # 1. Build the container script using Nix
     nix build -L .#container -o nix-container-result 2>&1 | tee build.log
-    
+
     # 2. Execute the script to stream the Docker archive to a tar file
     ./nix-container-result > DRL_env_docker.tar
-    
+
     # 3. Build the Apptainer .sif directly from the Docker tarball
     apptainer build DRL_env.sif docker-archive://DRL_env_docker.tar
-    
+
     # 4. Clean up the large temporary files
     rm -f DRL_env_docker.tar nix-container-result
     echo "✓ DRL_env.sif ready"
-
-
 
 # =============================================================================
 # DAG EXPORT TARGETS
 # =============================================================================
 
-@export_dag_detail:
-    echo "Exporting job-level DAG for {{TRACE}}..."
+export_dag_detail trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Exporting job-level DAG for ${t}..."
     mkdir -p plots
-    snakemake --configfile config.yaml --config trace_name={{TRACE}} --dag \
-        | dot -Tsvg \
-            -Grankdir=LR \
-            -Gsplines=polyline \
-            -Nshape=box \
-            -Nstyle=rounded \
-            -Efontsize=10 \
-        -o plots/{{TRACE}}_dag_detail.svg
-    echo "✓ Job DAG exported to plots/{{TRACE}}_dag_detail.svg"
+    snakemake --configfile config.yaml --config trace_name="${t}" --dag \
+        | dot -Tsvg -Grankdir=LR -Gsplines=polyline -Nshape=box -Nstyle=rounded -Efontsize=10 \
+        -o plots/"${t}"_dag_detail.svg
+    echo "✓ Job DAG exported to plots/${t}_dag_detail.svg"
 
-@export_dag_overview:
-    echo "Exporting rule-level DAG for {{TRACE}}..."
+export_dag_overview trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="{{trace}}"; t="${t%_job}_job"
+    echo "Exporting rule-level DAG for ${t}..."
     mkdir -p plots
-    snakemake --configfile config.yaml --config trace_name={{TRACE}} --rulegraph \
-        | dot -Tsvg \
-            -Grankdir=LR \
-            -Gsplines=polyline \
-            -Nshape=box \
-            -Nstyle=rounded \
-            -Efontsize=10 \
-        -o plots/{{TRACE}}_dag_overview.svg
-    echo "✓ Rule DAG exported to plots/{{TRACE}}_dag_overview.svg"
+    snakemake --configfile config.yaml --config trace_name="${t}" --rulegraph \
+        | dot -Tsvg -Grankdir=LR -Gsplines=polyline -Nshape=box -Nstyle=rounded -Efontsize=10 \
+        -o plots/"${t}"_dag_overview.svg
+    echo "✓ Rule DAG exported to plots/${t}_dag_overview.svg"
 
-@export_dag:
-    just export_dag_detail
-    just export_dag_overview
+export_dag trace="physical":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just export_dag_detail "{{trace}}"
+    just export_dag_overview "{{trace}}"
     echo "✓ Both DAGs exported to plots/"
-    echo "  - plots/{{TRACE}}_dag_detail.svg   (job-level; for appendix)"
-    echo "  - plots/{{TRACE}}_dag_overview.svg (rule-level; for methodology)"
 
 # =============================================================================
 # MAINTENANCE TARGETS

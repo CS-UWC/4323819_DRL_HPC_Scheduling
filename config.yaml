@@ -59,7 +59,10 @@ n_epochs: 5                        # PPO optimisation epochs per rollout (SB3 de
 learning_rate: "linear_3e-4"       # linear decay 3e-4 -> 0 over training; keeps fast early learning, tames late clip_fraction climb. Use "3e-4" for constant.
 
 # --- Topology ----------------------------------------------------------------
-topology_file: "physical_topology.txt" # "physical_topology.txt" | "deeplearn_topology.txt" (switch with trace_name)
+# topology_file is auto-selected from trace_name in the Snakefile (TRACE_TO_TOPOLOGY):
+# physical_job -> physical_topology.txt, deeplearn_job -> deeplearn_topology.txt.
+# Do NOT re-add a static topology_file key — a hard-coded value silently ran
+# deeplearn on the physical topology and collapsed every training episode.
 node_file: "nodes.csv"
 
 # --- Statistical test parameters ---------------------------------------------
