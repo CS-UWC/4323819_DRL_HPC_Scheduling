@@ -10,13 +10,16 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import gymnasium as gym
 import numpy as np
 import pandas as pd
 from sb3_contrib.common.maskable.utils import get_action_masks
+from stable_baselines3.common.save_util import json_to_data
 
 from src.alloc_wrapper import AllocationCommit
 from src.HPCsim.HPCsim import HPCsim
@@ -154,9 +157,57 @@ def build_env(spec: RunSpec, seed: int | None, eval_trace: str | None = None) ->
     )
 
 
+def saved_observation_space(model_path: str) -> gym.spaces.Space | None:
+    """Read the observation space out of an SB3 zip without materialising the
+    policy. These checkpoints are ~2 GB, so loading the model a second time just
+    to compare spaces is not affordable. None if the archive can't be read."""
+    try:
+        with zipfile.ZipFile(model_path) as archive:
+            data = json_to_data(archive.read("data").decode())
+        return data.get("observation_space")
+    except Exception as exc:  # noqa: BLE001 - diagnostic only, load() reports the real error
+        print(f"[WARN] could not introspect obs space of {model_path}: {exc}")
+        return None
+
+
+def bounds_only_mismatch(saved: gym.spaces.Space, current: gym.spaces.Space) -> bool:
+    """True when two spaces agree on structure (keys, shape, dtype) and differ
+    only in their low/high bounds."""
+    if type(saved) is not type(current):
+        return False
+    if isinstance(saved, gym.spaces.Dict) and isinstance(current, gym.spaces.Dict):
+        return saved.spaces.keys() == current.spaces.keys() and all(
+            bounds_only_mismatch(sub, current.spaces[key]) for key, sub in saved.spaces.items()
+        )
+    return saved.shape == current.shape and saved.dtype == current.dtype
+
+
 def load_model(spec: RunSpec, env: HPCsim):
     cls = ALGORITHMS[spec.algorithm]
-    return cls.load(spec.model_path, env=env)
+    custom_objects: dict[str, Any] = {}
+
+    # HPCsim declares its obs-space bound as
+    # max(trace.longest_requested_time, cluster.max_memory) (HPCsim.py:258), so
+    # the bound is a property of whichever split is loaded: deeplearn's dev70
+    # holds a 30-day job, its holdout30 only a 21-day one. SB3 then refuses the
+    # load even though the bound is purely declarative -- nothing scales
+    # observations by it (obs_wrapper.Float32Observation only casts), so the
+    # policy is unaffected. Adopt the eval env's bound when the structure is
+    # identical; a real shape/dtype change still fails loudly below.
+    saved_space = saved_observation_space(spec.model_path)
+    if saved_space is not None and saved_space != env.observation_space:
+        if not bounds_only_mismatch(saved_space, env.observation_space):
+            raise ValueError(
+                f"[{spec.run_id}] observation space changed structurally, not just in "
+                f"bounds: saved={saved_space} eval={env.observation_space}"
+            )
+        print(
+            f"[INFO] {spec.run_id}: obs-space bounds differ between the training "
+            f"split and this eval trace; adopting the eval env's bounds"
+        )
+        custom_objects["observation_space"] = env.observation_space
+
+    return cls.load(spec.model_path, env=env, custom_objects=custom_objects or None)
 
 
 def evaluate_one_run(
@@ -303,29 +354,33 @@ def main() -> None:
 
     specs = load_manifest_specs(manifest_path)
 
+    # An empty selection is fatal, not a warning: every caller in the Snakefile
+    # asks for a cell of the grid that must exist in the manifest, so no match
+    # means a broken manifest -- and exiting 0 would let Snakemake mark the
+    # stage complete over an empty runs/ directory.
     if args.filter_seed is not None:
         specs = [s for s in specs if s.seed == args.filter_seed]
         if not specs:
-            print(f"[WARN] No runs found for seed {args.filter_seed} in manifest")
-            sys.exit(0)
+            print(f"[ERROR] No runs found for seed {args.filter_seed} in manifest")
+            sys.exit(1)
 
     if args.filter_algo is not None:
         specs = [s for s in specs if s.algorithm == args.filter_algo]
         if not specs:
-            print(f"[WARN] No runs found for algorithm {args.filter_algo} in manifest")
-            sys.exit(0)
+            print(f"[ERROR] No runs found for algorithm {args.filter_algo} in manifest")
+            sys.exit(1)
 
     if args.filter_treatment is not None:
         specs = [s for s in specs if s.treatment_id == args.filter_treatment]
         if not specs:
-            print(f"[WARN] No runs found for treatment {args.filter_treatment} in manifest")
-            sys.exit(0)
+            print(f"[ERROR] No runs found for treatment {args.filter_treatment} in manifest")
+            sys.exit(1)
 
     if args.filter_split is not None:
         specs = [s for s in specs if s.split_id == args.filter_split]
         if not specs:
-            print(f"[WARN] No runs found for split {args.filter_split} in manifest")
-            sys.exit(0)
+            print(f"[ERROR] No runs found for split {args.filter_split} in manifest")
+            sys.exit(1)
 
     if args.limit_runs is not None:
         specs = specs[-args.limit_runs :]
@@ -364,6 +419,13 @@ def main() -> None:
 
     write_summary(output_root, results, failures)
     print(f"Done: success={len(results)} fail={len(failures)}")
+
+    # Fail the job, so Snakemake drops the completion marker instead of touching
+    # it over an empty runs/ directory. Exiting 0 here hid a whole holdout stage:
+    # every run failed, the markers were written anyway, and the first sign of it
+    # was aggregate_results finding no metrics CSVs an hour later.
+    if failures:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
