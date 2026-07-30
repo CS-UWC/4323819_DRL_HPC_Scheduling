@@ -960,6 +960,20 @@ def write_stats_outputs(
         out_dir / "page_trend.csv",
     )
 
+    # The curve records already carry metric/treatment_a/treatment_b/delta/
+    # p_value from compute_confidence_curves, which is exactly the schema
+    # visualise.draw_confidence_curves expects -- no metric_name prefix here,
+    # unlike the writers above.
+    all_curves: list[dict[str, Any]] = []
+    for result in results:
+        curves = result.get("confidence_curves", {})
+        if curves.get("performed"):
+            all_curves.extend(curves.get("curves", []))
+    write_csv(
+        pd.DataFrame(all_curves) if all_curves else pd.DataFrame([]),
+        out_dir / "confidence_curves.csv",
+    )
+
     write_json(metadata["run_metadata"], out_dir / "stats_meta.json")
 
 

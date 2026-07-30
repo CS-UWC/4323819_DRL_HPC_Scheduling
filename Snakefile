@@ -373,6 +373,7 @@ rule stats:
         confidence_intervals=f"result/{TRACE_NAME}/stats/confidence_intervals.csv",
         page_trend=f"result/{TRACE_NAME}/stats/page_trend.csv",
         cd_diagram=f"result/{TRACE_NAME}/stats/cd_diagram_input.csv",
+        confidence_curves=f"result/{TRACE_NAME}/stats/confidence_curves.csv",
         stats_meta=f"result/{TRACE_NAME}/stats/stats_meta.json",
     log: f"logs/snakemake/{TRACE_NAME}/stats.log"
     resources:
@@ -610,6 +611,7 @@ rule visualise:
         pairwise_nemenyi=f"result/{TRACE_NAME}/stats/pairwise_nemenyi.csv",
         confidence_intervals=f"result/{TRACE_NAME}/stats/confidence_intervals.csv",
         page_trend=f"result/{TRACE_NAME}/stats/page_trend.csv",
+        confidence_curves=f"result/{TRACE_NAME}/stats/confidence_curves.csv",
         stats_summary=f"result/{TRACE_NAME}/stats/stats_summary.json",
     output:
         marker=touch(f"result/{TRACE_NAME}/.visualise_complete"),

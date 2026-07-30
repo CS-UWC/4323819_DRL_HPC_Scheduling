@@ -135,16 +135,30 @@ def save_figure(fig: plt.Figure, plots_dir: Path, stem: str) -> None:
 # Tables — per-seed descriptive + comparison (existing)
 # ---------------------------------------------------------------------------
 
+def per_treatment_mean_std(seed_summary: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Mean and across-seed spread of one metric, one row per treatment.
+
+    The spread is recomputed here rather than read out of seed_summary's
+    <metric>_std column, because that column is always NaN:
+    aggregate_seed_summary groups on GROUP_KEYS (utils.py:130), which includes
+    seed, while eval_wide holds exactly one row per run (uniqueness enforced at
+    aggregate_results.py:229) -- so every group is a single element and its std
+    is undefined. What the tables and error bars want is the spread of the
+    per-seed means across seeds, which only exists one level up.
+    """
+    df = (
+        seed_summary.groupby("treatment_id")[metric + "_mean"]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
+    df.columns = ["treatment_id", "mean", "std"]
+    return df
+
+
 def write_metric_tables(seed_summary: pd.DataFrame, tables_dir: Path) -> None:
-    """One CSV per metric: treatment_id, mean, std (averaged across seeds)."""
+    """One CSV per metric: treatment_id, mean, std (across seeds)."""
     for metric in KEY_METRICS:
-        mean_col, std_col = metric + "_mean", metric + "_std"
-        df = (
-            seed_summary.groupby("treatment_id")[[mean_col, std_col]]
-            .mean()
-            .reset_index()
-        )
-        df.columns = ["treatment_id", "mean", "std"]
+        df = per_treatment_mean_std(seed_summary, metric)
         df.to_csv(tables_dir / f"{metric}.csv", sep=",", index=False)
 
 
@@ -342,13 +356,7 @@ def draw_bar_graphs(seed_summary: pd.DataFrame, plots_dir: Path) -> None:
     """Draw bar graph per metric: mean ± std per treatment, DRL vs baseline colors."""
 
     for metric in KEY_METRICS:
-        mean_col, std_col = metric + "_mean", metric + "_std"
-        df = (
-            seed_summary.groupby("treatment_id")[[mean_col, std_col]]
-            .mean()
-            .reset_index()
-        )
-        df.columns = ["treatment_id", "mean", "std"]
+        df = per_treatment_mean_std(seed_summary, metric)
 
         colors = ["coral" if any(b in tid.lower() for b in TRAD_ALGORITHMS) else "steelblue" for tid in df["treatment_id"]]
 
