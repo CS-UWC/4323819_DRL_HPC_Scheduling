@@ -125,6 +125,14 @@ ALGORITHMS = {
 
 TRAD_ALGORITHMS  = ["fcfs", "lcfs", "sjf", "wfp3", "unicep", "f_1", "f_2"]
 
+# Uniform-random-over-valid-actions control (reviewer item N27). It is reported
+# in the baseline lane beside TRAD_ALGORITHMS but is NOT one of them: it is not
+# a scheduling heuristic, it runs the RL MDP rather than HPCsim.run(), and it is
+# the only baseline with a stochastic component (hence seeds and a std). See
+# src/random_control.py.
+RANDOM_ALGORITHM = "random"
+RANDOM_TREATMENT_ID = f"{RANDOM_ALGORITHM}__mask_true"
+
 # Grouping keys for aggregation
 CANON_KEYS = ["run_id", "treatment_id", "algorithm", "use_masking", "seed", "split_id"]
 GROUP_KEYS = ["treatment_id", "algorithm", "use_masking", "seed", "split_id"]

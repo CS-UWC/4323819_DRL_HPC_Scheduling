@@ -142,6 +142,20 @@ evaluation has the same per-pass profile; it was split into one job per seed
 time and it is only 10 jobs) plus the same heartbeat and 840 ceiling. Each run records
 `eval_wall_s` in its metrics file.
 
+**Later correction to the holdout half of this (M5b).** Two things changed the
+calculus. The DQN family was subsequently measured to evaluate acceptably on CPU,
+so the reason for its GPU request does not survive; and holdout was extended from
+the single Pareto winner to all six treatments, taking it from 10 jobs to 60 per
+trace. At that scale a blanket GPU request is actively harmful — it would
+serialise the whole holdout stage onto the 2–3 typically-free (and shared) GPU
+nodes while the six CPU-only nodes idle. Holdout evaluation is therefore now
+CPU-only. Note this does **not** retract the finding above: the per-step cost of a
+DRL eval is still dominated by the batch-1 forward pass through the ~230M-weight
+first layer, and the 2× PPO-vs-DQN gap on an identical environment is still the
+evidence for it. What changed is the *scheduling* conclusion drawn from it, once
+the job count grew and CPU throughput turned out to be adequate. The `eval_run`
+rule for the dev split still uses the hybrid placement described above.
+
 ## Only the final checkpoint is kept (scratch capacity)
 
 Ceph `/scratch` is 500 GB. Each checkpoint zip is ~2 GB (the policy's first layer
@@ -153,6 +167,190 @@ every zip except the final `{total_timesteps}.zip` immediately after the explici
 final save, holding scratch to ~60 × 2 GB ≈ 120 GB of models. (Equivalent lazier
 option, not taken so mid-run checkpoints still exist for inspection: don't write
 the intermediates at all.)
+
+## The random-policy control (reviewer item N27)
+
+This section records a control that was added to the baseline set, why it was
+built the way it was, and how to read it. It is a methods addition, but its
+purpose is to close a gap in the *results* argument, so it is written to be
+usable in both sections.
+
+### The gap it closes
+
+On physical, masking + a *near-uniform* policy (`maskable_a2c`, avg waiting
+2,328 ± 90 s — entropy 6.2297 against the `ln(513) = 6.240` ceiling, i.e. a
+policy that has barely departed from uniform) lands within **3.6%** of masking +
+a *learned* policy (`maskable_ppo`, 2,243 ± 41 s). Two explanations fit that
+observation equally well:
+
+1. both policies learned something, and the learned one is slightly better; or
+2. the physical benchmark is largely **insensitive to policy quality** — any
+   masked policy scores ≈2,300, and neither one learned anything
+   schedule-relevant.
+
+Nothing in the existing result set separates them, and reading (2) does not just
+weaken the A2C row: it invalidates *every* physical DRL claim, because it would
+mean the headline number is produced by the action mask and the environment
+rather than by the policy. That is the rejection risk. The fix is a control
+whose policy is uniform over the valid actions **by construction** and has
+learned nothing at all: it establishes the floor that "MaskablePPO learned to
+schedule" has to clear.
+
+### The design decision that matters: which simulator the control runs in
+
+`HPCsim` is effectively two different simulators depending on the entry point,
+and conflating them would have quietly produced the wrong experiment:
+
+- **`HPCsim.run()`** — the heuristic loop that LCFS/SJF/UNICEP use. It drives
+  `job_schedule_allocation()`, which consults the `Scheduler` strategy object
+  **and runs `Scheduler.backfill()`**.
+- **`HPCsim.step()`** — the RL MDP the six DRL treatments are evaluated on: a
+  513-way discrete action (`window_size=512` queue slots + one forward/no-op),
+  an action mask, and **no backfill anywhere**.
+
+The obvious implementation — add a `"random"` strategy to the `Scheduler` class
+so `run_baseline.py` picks it up like any other heuristic — would have produced
+*random-choice-plus-backfill*: a fourth heuristic, not a control. Its score would
+differ from MaskablePPO's for reasons unrelated to policy quality (backfill alone
+moves the metric substantially), and the comparison would answer no question
+anyone asked.
+
+A control has to hold **everything except the policy** fixed. So the control
+rolls out the identical MDP — same wrapper stack
+(`Float32Observation(AllocationCommit(HPCsim(...)))`), same 513-action space,
+same `action_masks()`, same absence of backfill, same reward accounting, same
+metric extraction — and substitutes exactly one thing:
+`model.predict(obs, ...)` becomes a uniform draw over the valid entries of the
+mask. It is built by calling `evaluate_agents.build_env` directly rather than
+reconstructing the env, so the control and the DRL evaluation cannot silently
+drift apart if the wrapper stack is ever changed.
+
+The observation is still computed and then ignored. That is the property under
+test: a policy that cannot see the state.
+
+Practical consequence for the write-up: the control is **not** a scheduling
+heuristic and must not be described as one. It is an ablation of the *policy*
+within the DRL evaluation pipeline, reported in the baseline table because that
+is where a reader needs to see it.
+
+### Seeds — what they vary, and what they do not
+
+The three heuristics are deterministic and run seedless. This control is the one
+stochastic member of the baseline set, so it runs the same 10 seeds as the DRL
+treatments and is the only baseline row reported as **mean ± std**.
+
+What the seed varies is worth stating precisely, because it is a question a
+reviewer will ask. `random_job=False` and the trace, cluster and topology are
+fixed, so **the environment is deterministic and the seed does not perturb it** —
+the seed varies only the action draws. That is the correct analogue of the DRL
+side, where the seed varies the trained policy and the evaluation environment is
+likewise identical across seeds. The spread across the control's 10 seeds is
+therefore *pure policy variance*, which is what makes it comparable to the ± on
+the DRL rows.
+
+The draws come from a dedicated `np.random.default_rng(seed)` rather than the
+env's `np_random`. Nothing on this path currently consumes `np_random`, but if
+anything ever did, a shared stream would couple the policy's randomness to the
+environment's and quietly stop this being a clean control.
+
+Only the **masked** control is run. The unmasked question is already answered by
+the unmasked DRL treatments, which function as the masking ablation; and an
+unmasked uniform policy would draw from 513 actions of which typically ~1 is
+valid, would essentially never commit a placement, and would hit
+`AllocationCommit`'s hang guard rather than produce a comparable number.
+
+### Two pipeline assumptions the control broke
+
+Both were assumptions that "baseline" implies "deterministic, one run", and both
+had to be relaxed rather than worked around:
+
+1. **`baseline_aggregate.py` rejected the control outright.** Its duplicate check
+   keyed on `(treatment_id, split_id)`, so the 10 seeds looked like 10 collisions
+   and raised. The key is now `(treatment_id, split_id, seed)` — which still
+   catches a genuine re-run of a seedless heuristic, since their seed field is
+   empty and therefore still collides.
+2. **`baseline_summary.csv` had nowhere to put a standard deviation.** It carried
+   only `{metric}_mean_mean`. It now also carries `{metric}_mean_std` and an
+   explicit `n_seeds`, matching `algorithm_summary.csv`'s convention. For the
+   deterministic heuristics the grouping is a no-op — the mean of one value is
+   that value, and its std is NaN (ddof=1 at n=1), which `fmt_mean_std` already
+   renders with no ± term, so **their rows are byte-identical to before**.
+
+The std is load-bearing rather than decorative: a control reported as a point
+estimate cannot answer the question N27 asks. If the control's spread overlaps
+MaskablePPO's, that overlap *is* the finding.
+
+### How to read the result
+
+The comparison to make is control vs `maskable_a2c` vs `maskable_ppo` on
+`avg_waiting`, physical, dev70. Three outcomes, decided before the numbers land
+so the reading is not fitted to them:
+
+- **Control is clearly worse than both masked treatments** (well outside the
+  seed spread). Reading (2) is dead. Masking plus *learning* beats masking plus
+  chance, `maskable_a2c`'s near-uniform entropy notwithstanding — which sharpens
+  `N19` into a genuinely interesting result: a policy can sit near the entropy
+  ceiling and still have learned a useful action *ordering*, since evaluation is
+  deterministic argmax over near-tied logits, not sampling.
+- **Control is comparable to `maskable_a2c` but clearly worse than
+  `maskable_ppo`.** The cleanest outcome for the paper: it splits the two,
+  confirms `maskable_a2c` is effectively unlearned, and leaves MaskablePPO's
+  result standing with a measured margin over chance.
+- **Control is comparable to both.** Reading (2) holds, and the honest response
+  is to say so: the physical benchmark does not discriminate policy quality at
+  this scale, the physical DRL numbers cannot support a "learned to schedule"
+  claim, and the paper's weight moves to deeplearn (which the existing
+  `gpu_utilization ≈ 0.261` vs `0.000` argument already predicts is the more
+  discriminating regime). This would be a bad result but a publishable one; it
+  is much worse to have a reviewer discover it.
+
+Run it on **both** traces. Physical is where the risk is, but the control is
+also the natural check on deeplearn's odd result that unmasked `ppo` wins
+operationally with a degenerate critic (`N1`/`N21`) — if chance also does well
+there, that finding needs rewording too.
+
+### Cost
+
+Evaluation only: no training, no GPU. The control has no network, so unlike the
+DRL evals there is no forward pass to accelerate — a GPU request would only queue
+the job behind the 2–3 contended GPU nodes for nothing. It is also why the
+control should be *faster* per step than any DRL eval: the measured per-step cost
+of a DRL eval is dominated by streaming the `56,090 × 4096 ≈ 230M`-weight first
+layer (see the evaluation section above), and the control does none of that.
+
+Budget from the masked DRL evals, which are the right reference for step count
+(masking is what keeps the episode at ≈75k–91k decision steps rather than
+≈591k): physical masked evals took ≈2,700–3,400 s wall, deeplearn ≈350–630 s.
+The control should come in under those, and 10 seeds fan out to one SLURM job
+each, so expect well under an hour of wall time per trace rather than the 4–6 h
+budgeted in the TODO. The rule still requests the 840-minute partition maximum —
+an unused ceiling costs nothing, whereas the two ceilings guessed too low on the
+eval rule each cost a full rerun and left empty logs (SIGKILL discards buffered
+stdout). The same flushed `steps/s` heartbeat is emitted for the same reason.
+
+One caveat on step count: a worse policy generally churns *more* decision steps
+before completing the trace (`maskable_dqn` needs 91k where `maskable_ppo` needs
+77k), so the control may run longer than the masked treatments even though each
+step is cheaper. `decision_count` is recorded per run and is itself worth
+reporting — if the control needs far more steps to clear the same trace, that is
+independent evidence the learned policies are doing something.
+
+### Limits to state honestly
+
+- The control bounds **policy quality**, not reward-proxy quality. If the control
+  scores well, that is evidence the environment plus mask do most of the work; it
+  is not evidence about whether the shaped reward is aligned with `avg_waiting`.
+  That remains `N1`/`N21`'s question.
+- It is deliberately **excluded from the Friedman/Nemenyi omnibus**. That test
+  compares the six DRL treatments; adding a seventh arm would widen the Nemenyi
+  critical difference and worsen a power problem `M4` and `N4` already flag,
+  which would be a real cost for no gain. The control is reported descriptively
+  beside the heuristics, and if a test is wanted the right one is a seed-matched
+  Wilcoxon signed-rank against `maskable_ppo` on the shared seed set.
+- The comparison is on dev70, so it inherits `M5`'s in-sample caveat. That is not
+  a problem here: the control never trained on anything, so if anything the
+  in-sample setting *favours* the DRL treatments, and the control's floor is
+  conservative.
 
 ## Results interpretation and future options (physical_job, dev70, 10 seeds)
 

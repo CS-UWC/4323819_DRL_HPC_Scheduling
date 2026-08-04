@@ -393,17 +393,32 @@ def build_model(
     if "ppo" in algorithm.lower():
         model_kwargs["n_epochs"] = n_epochs
 
-    # A2C entropy floor (experiment hyperparameter). On the ~230M-param
-    # [4096,2048,1024] net the default ent_coef=0.0 let maskable_a2c saturate to
-    # ~0 entropy and, together with a non-standard advantage normalization, diverge
-    # to non-finite logits (MaskableCategorical Simplex() crash). ent_coef=0.01
-    # (SB3's own A2C example value) keeps entropy up; this is a tuning choice for
-    # our config, so it lives here with the other hyperparameters rather than in
-    # the algorithm class. The paired fix — the real driver — is at its source:
-    # a2c_mask.py now defaults normalize_advantage=False (canonical A2C), so no
-    # override is needed here. A2C-only (PPO/DQN have no analogue).
-    if "a2c" in algorithm.lower():
-        model_kwargs["ent_coef"] = 0.01
+    # NO ent_coef override — every algorithm takes SB3's default 0.0.
+    #
+    # There used to be an A2C-only `ent_coef = 0.01` here, and it is deliberately
+    # gone (reviewer item A2C-1). The history matters, because the obvious reading
+    # of the crash it was added for points at the wrong fix:
+    #
+    # maskable_a2c originally diverged to non-finite logits (a MaskableCategorical
+    # Simplex() violation) after saturating to ~0 entropy on the ~230M-param
+    # [4096,2048,1024] net. An entropy bonus was the intuitive response, but it was
+    # necessary-and-not-sufficient: with ent_coef=0.01 the run survived to ~110k
+    # steps and then crashed the same way. The actual driver was a non-standard
+    # `normalize_advantage=True` default in our MaskableA2C, which over A2C's
+    # 100-sample rollout (n_steps=5 x 20 envs) rescales near-zero advantages —
+    # pure noise — to unit scale once the critic fits well. That is fixed at its
+    # source: a2c_mask.py:112 now defaults normalize_advantage=False, matching
+    # canonical A2C (see the reasoning at a2c_mask.py:340-352).
+    #
+    # With the real cause fixed, the entropy bonus is not just unnecessary — it is
+    # a confound. It applied to A2C ONLY, while PPO and DQN kept SB3's 0.0, so any
+    # "A2C is temperamental, PPO is not" comparison was contaminated by a
+    # hyperparameter this study itself introduced (reviewer item N26a). Removing it
+    # makes the six-treatment comparison a controlled one.
+    #
+    # Do not re-add it without also re-reading N19: three of four A2C arms ended at
+    # a near-uniform policy against the ln(513)=6.240 entropy ceiling, so an entropy
+    # bonus is pushing in the direction the failure already went.
 
     return algo_class("MultiInputPolicy", env, **model_kwargs)
 
