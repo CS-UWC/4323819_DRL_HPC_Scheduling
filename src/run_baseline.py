@@ -21,9 +21,15 @@ combined visuals" and methodology_protocol.md's documented decision that
 baselines are reported descriptively and excluded from the DRL-only
 Friedman/Nemenyi/Wilcoxon/Page-trend hypothesis tests):
 
-  result/{partition}/{run_id}_metrics.csv   : one eval_wide-compatible row
-  result/{partition}/{run_id}_metrics.json  : same row, as JSON sidecar
+  result/{partition}/{stem}_metrics.csv     : one eval_wide-compatible row
+  result/{partition}/{stem}_metrics.json    : same row, as JSON sidecar
   logs/baseline_run_log.csv                 : manifest entry (seed="" )
+
+where {stem} is "{treatment_id}__{split_id}" for the heuristics and
+"{treatment_id}__{split_id}__seed{seed}" for the random control -- a
+deterministic name, so a --force re-run replaces its predecessor instead of
+leaving a second file for baseline_aggregate's glob to trip over (see
+metrics_stem).
 
 Use baseline_aggregate.py to fold these into baseline_summary.csv (per-trace,
 no seed averaging needed -- a deterministic algorithm has exactly one value),
@@ -39,6 +45,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.HPCsim.HPCsim import HPCsim
+from src.naming import metrics_stem
 from src.utils import (
     PARTITION_CONFIGS,
     RANDOM_ALGORITHM,
@@ -61,8 +68,9 @@ def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
     split_id = row["split_id"]
     treatment_id = f"{algorithm}__mask_false"
     result_dir.mkdir(parents=True, exist_ok=True)
-    out_csv = result_dir / f"{run_id}_metrics.csv"
-    out_metrics = result_dir / f"{run_id}_metrics.json"
+    stem = metrics_stem(treatment_id, str(split_id))
+    out_csv = result_dir / f"{stem}_metrics.csv"
+    out_metrics = result_dir / f"{stem}_metrics.json"
 
     t0 = time.time()
     env = HPCsim(
@@ -100,7 +108,7 @@ def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
     # only checks CORE_METRICS, which does not include "seed", so an empty
     # seed here does not trip any existing validation.
     metrics = {
-        "run_id": row["run_id"],
+        "run_id": run_id,
         "treatment_id": treatment_id,
         "algorithm": algorithm,
         "use_masking": False,
@@ -178,8 +186,9 @@ def run_random(
 
     metrics = rollout_random(spec, seed=seed, max_steps=max_steps)
 
-    write_csv(pd.DataFrame([metrics]), result_dir / f"{run_id}_metrics.csv")
-    write_json(metrics, result_dir / f"{run_id}_metrics.json")
+    stem = metrics_stem(str(row["treatment_id"]), str(row["split_id"]), seed)
+    write_csv(pd.DataFrame([metrics]), result_dir / f"{stem}_metrics.csv")
+    write_json(metrics, result_dir / f"{stem}_metrics.json")
 
     print(
         f"[random seed={seed}] done "
