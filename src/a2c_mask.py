@@ -370,14 +370,19 @@ class MaskableA2C(OnPolicyAlgorithm):
                 try:
                     actions, values, log_probs = self.policy(obs_tensor, action_masks=action_masks)
                 except ValueError:
-                    # MaskableCategorical's Simplex() check fires here when the
-                    # policy head goes bad, but torch's message elides all but
-                    # the corner columns of a (n_envs, 513) probs tensor, so it
-                    # cannot distinguish a hidden NaN from probabilities that
-                    # simply stopped summing to 1 -- and those want different
-                    # fixes. Recompute the head and report what actually broke.
-                    # Costs nothing on the happy path: this runs once, on the
-                    # way out.
+                    # MaskableCategorical's Simplex() check fires here, and
+                    # torch's message elides all but the corner columns of a
+                    # (n_envs, 513) probs tensor, so it cannot distinguish a
+                    # hidden NaN from probabilities that simply stopped summing
+                    # to 1 -- and those want different fixes. Recompute the head
+                    # and report what actually broke. Costs nothing on the happy
+                    # path: this runs once, on the way out.
+                    #
+                    # This is what resolved the crash: it showed everything
+                    # finite, which ruled out divergence and pointed at the
+                    # sb3-contrib cache bug fixed in src/sb3_compat.py. Kept as a
+                    # regression tripwire -- if it ever fires again, the verdict
+                    # line says immediately whether the cause is a new one.
                     self._report_policy_breakdown(obs_tensor, action_masks)
                     raise
 
@@ -464,10 +469,14 @@ class MaskableA2C(OnPolicyAlgorithm):
             # Advantage normalization. NOT part of stock SB3 A2C (which defaults
             # normalize_advantage=False). Over A2C's tiny n_steps rollout, once the
             # value fits and true advantages are ~0, normalizing divides near-zero
-            # residuals by a near-zero std and rescales pure noise to unit scale,
-            # which drove maskable_a2c to NaN logits (Simplex() crash). Default is
-            # now False to match canonical A2C; kept behind the flag for large-batch
-            # configs where normalization is safe.
+            # residuals by a near-zero std and rescales pure noise to unit scale.
+            # Default is False to match canonical A2C; kept behind the flag for
+            # large-batch configs where normalization is safe.
+            #
+            # This was once blamed for maskable_a2c's Simplex() crash. It was not
+            # the cause -- that is a stale probs cache in the pinned sb3-contrib,
+            # see src/sb3_compat.py. False remains the right default on its own
+            # merits, but it is not a crash fix.
             advantages = rollout_data.advantages
             if self.normalize_advantage:
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)

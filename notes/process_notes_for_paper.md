@@ -8,6 +8,11 @@ the methodology / experimental-setup and limitations sections.
 - Nodes: 128 GB RAM, GPU (`gres=gpu:1`), 24 cores. Partition `main`.
 - Each `(seed × algorithm)` treatment is one SLURM job (Snakemake fans them out).
 - Training: 3M timesteps, `n_envs=20` (SubprocVecEnv) for all six treatments (DQN vectorized too).
+- Dependency versions are pinned to match Wang et al.'s stack for comparability
+  (`flake.lock`, plus hand-pinned `nix/sb3-contrib.nix` at 2.6.0). That choice has a
+  cost: it inherits upstream defects fixed in later releases — see
+  [A2C "numerical instability"](#a2c-numerical-instability-was-a-dependency-bug-not-divergence)
+  for one that cost a training run, and the case for un-pinning in a future iteration.
 
 ## DQN needed substantially more RAM than the on-policy algorithms
 
@@ -50,43 +55,82 @@ too tight and produced empty logs (SIGKILL discards buffered stdout), which is
 why the ceiling was raised to 720. A per-algorithm `n_steps` increase was
 diagnosed as a contingency but not needed (see `training_performance.md §3`).
 
-## A2C numerical stability: entropy floor + reverting non-standard advantage normalization
+## A2C "numerical instability" was a dependency bug, not divergence
 
 A `maskable_a2c` seed crashed with a `MaskableCategorical` `Simplex()` violation —
-the distribution's probabilities no longer summed to one because the policy logits
-had gone non-finite. Two coupled causes, fixed together:
+`Expected parameter probs (Tensor of shape (20, 513)) ... to satisfy the constraint
+Simplex()` — deterministically at 677,540 of 3M timesteps, identically across seven
+re-runs on three different nodes. **This section previously recorded a different
+diagnosis (entropy collapse plus non-standard advantage normalization). That
+diagnosis was wrong and is corrected here**, retained only where it explains why the
+wrong fixes appeared to work.
 
-**1. Entropy collapse (`ent_coef=0.0`).** On the ~230M-parameter `[4096,2048,1024]`
-first layer the policy saturated to ~zero entropy within 20k steps (`entropy_loss
-≈ 0`, all losses ~1e-7). Adding **`ent_coef=0.01`** (the value SB3's own A2C example
-uses) keeps entropy up. This was necessary but *not sufficient*: with the bonus the
-run survived to ~110k steps and then crashed the same way, so entropy was not the
-whole story.
+**What it is not.** A diagnostic in `a2c_mask.py`'s rollout loop dumps the policy
+state at the moment of failure. At the crash point the policy parameters,
+observations, latents and raw logits are **all finite**, and the masked
+probabilities recompute to a valid distribution. `value_loss` peaked at 1.2e-4 with
+no growth. Nothing had diverged.
 
-**2. Non-standard advantage normalization (the real driver).** `a2c_mask.py`
-defaults `normalize_advantage=True` — normalization that stock SB3 A2C does **not**
-perform (the source even comments it as "not present in the original
-implementation"). Over A2C's tiny 100-sample rollout (`n_steps=5 × 20 envs`), once
-the value function fits well (`explained_variance ≈ 0.83`) the true advantages are
-~0, so `(adv − mean) / (std + 1e-8)` divides near-zero residuals by a near-zero std
-and **rescales pure noise to unit scale**. The policy then takes a full-strength
-gradient step on noise every update; the value fit collapses (`explained_variance`
-fell `0.83 → 0.0001` in 100 iterations) and the logits diverge to `NaN`. This is
-precisely why stock A2C keeps `normalize_advantage=False`. Fix: correct the
-`MaskableA2C` default at its source — `a2c_mask.py`'s `normalize_advantage` default
-is changed from `True` to `False`, matching canonical A2C. This is a return to the
-standard algorithm, not a new hyperparameter, and it is `maskable_a2c`-specific —
-stock `a2c` (SB3's own `A2C`) already defaults to `False`, which is why only the
-maskable variant diverged.
+**What it is.** `MaskableCategorical.apply_masking` ends by caching
+`self.probs = logits_to_probs(logits)`, and it is called *twice* per forward pass:
+once from `MaskableCategorical.__init__` with `masks=None` (the distribution is
+built unmasked), then again from `MaskableActorCriticPolicy` with the real action
+masks. `torch.distributions.Distribution.__init__` validates a parameter only once
+it is no longer lazy — `if param not in self.__dict__` — so the first call's cache
+is what the second call checks against `Simplex()`. **The tensor torch rejects is
+the stale unmasked softmax, not the masked distribution being built.** Whether it
+trips is float32 summation error against a 1e-6 tolerance.
 
-The two fixes live at the layer each belongs to. `ent_coef=0.01` is a tuning choice
-for this config, so it is set on the A2C construction path (`a2c` and `maskable_a2c`)
-alongside the other hyperparameters; the advantage-normalization fix is a defect in
-the custom class, so it is corrected as that class's default (no per-run override).
-PPO normalizes over large minibatches (stable) and DQN has no analogue. The masking
-itself was not implicated: an explicit all-false-mask guard (`a2c_mask.py`) never
-triggered. Because training is seeded the failure is deterministic per seed, so it
-needed a fix rather than a retry.
+This accounts for the observations that defeated every divergence theory:
+
+- **Only `maskable_a2c` fails.** Stock SB3 `a2c` uses a plain `Categorical` whose
+  `probs` stays lazy and is never validated, so it can saturate arbitrarily hard
+  without crashing — which it does.
+- **`ent_coef=0.01` appeared to help.** It held the policy near-uniform, and a
+  near-uniform softmax sums cleanly. It suppressed the symptom without fixing
+  anything (and never let a run learn — see below).
+- **Bit-identical failure across re-runs.** The arithmetic is deterministic, so a
+  seeded run fails at the same timestep every time. This reads as a reproducible
+  algorithmic defect, and was read as one.
+
+**Version provenance — the part worth stating in the paper.** The environment
+deliberately pins `sb3-contrib==2.6.0` (`nix/sb3-contrib.nix`) to match the versions
+used by Wang et al., whose HPCSim environment this work builds on, so that results
+are comparable against theirs rather than against a differently-versioned stack.
+**The bug was fixed upstream in sb3-contrib 2.9.0**, which clears the cached `probs`
+before the re-init; its fix comment names this exact failure ("stale float32 probs
+deviate from sum=1 by >1e-6 ... many categories"). Pinning for comparability
+therefore inherited a defect that had already been repaired upstream. A future
+iteration should move to current `sb3-contrib`/`torch` releases and re-establish the
+comparison baseline there rather than carrying the pinned stack forward.
+
+**Fix as shipped.** Rather than bump the pin mid-study — three minor versions, a
+fresh container, and loss of comparability with completed runs — `src/sb3_compat.py`
+backports upstream's one-liner: drop the cached `probs` before `apply_masking`
+re-inits. It is imported once from `src/utils.py`. The masked probabilities are
+bit-identical to the unpatched intent, so no result changes, and because it is repo
+code it deploys with a `git pull` and needs no `.sif` rebuild. Argument validation is
+deliberately left ON (rather than the blunter
+`Distribution.set_default_validate_args(False)`), so genuinely non-finite logits
+would still raise.
+
+**Two earlier fixes, reassessed.** `ent_coef=0.01` is gone and should stay gone, but
+for a measured reason rather than a stability one: with the bonus all 20 A2C runs
+finish at 99.8–100% of the `ln(513)=6.240` entropy ceiling — still essentially
+uniform — because the entropy term (~0.0624) outweighs `policy_loss` (1e-9 to 1e-3)
+by roughly 600×. It also applied to A2C only, confounding any "A2C is temperamental"
+comparison against PPO and DQN (reviewer item N26a). `a2c_mask.py`'s
+`normalize_advantage` default stays `False`: that is canonical A2C and defensible on
+its own merits, but it did **not** fix the crash and is no longer claimed to.
+
+**Limitation to state honestly.** The mechanism is established by construction — in
+2.6.0 the only route by which `probs` enters `__dict__` is that cache assignment, so
+a `Simplex()` error naming `probs` can only be the previous call's cache — and a
+regression test reproduces the exact error end-to-end. The *drift itself* was only
+reproducible synthetically at 4096 categories; at this project's 513 it measures
+~6e-7 on CPU, just under tolerance. Training ran on CUDA, whose softmax and sum
+reductions accumulate in a different order, and that crossing point was not
+reproduced on CPU hardware.
 
 ## Checkpoint save_freq must account for n_envs (silent no-save on on-policy)
 
