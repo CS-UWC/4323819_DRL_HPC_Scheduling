@@ -20,6 +20,7 @@ from sb3_contrib.ppo_mask import MaskablePPO
 
 from src.a2c_mask import MaskableA2C
 from src.dqn_mask import MaskableDQN
+import src.sb3_compat  # noqa: F401  patches the pinned sb3-contrib; see module docstring
 
 
 # ---------------------------------------------------------------------------
