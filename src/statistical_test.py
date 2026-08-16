@@ -105,12 +105,18 @@ METRIC_DIRECTION: dict[str, str] = {
     "eval_wall_s": "lower_is_better",
 }
 
+# Landis & Koch (1977): substantial is 0.61-0.80 and almost perfect is
+# 0.81-1.00, which is the banding the paper declares in its statistical
+# framework section. The top band was 0.7 here, so any W in [0.70, 0.80) --
+# deeplearn episode reward at 0.739 and physical decision latency at 0.754 --
+# came out one band too high. The already-generated friedman_summary.csv files
+# carry the correct labels; this keeps a re-run from reverting them.
 KENDALL_W_THRESHOLDS = [
     (0.0, "Slight Agreement"),
     (0.2, "Fair Agreement"),
     (0.4, "Moderate Agreement"),
     (0.6, "Substantial Agreement"),
-    (0.7, "Almost Perfect Agreement"),
+    (0.8, "Almost Perfect Agreement"),
 ]
 
 MIN_ALGORITHMS = 3
