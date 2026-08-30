@@ -28,7 +28,7 @@ n = 0
 with open("logs/run_log.csv") as f:
     for row in csv.DictReader(f):
         mp = row.get("model_path")
-        if mp and os.path.exists(mp):
+        if row.get("split_id", "").startswith(f"{trace}_") and mp and os.path.exists(mp):
             out = dst / mp            # preserve relative path so per-seed/algo models don't collide
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(mp, out); n += 1

@@ -1,156 +1,128 @@
-# Methodology Protocol (Template)
+# Methodology Protocol
 
-Use this file as the canonical methodology specification for Submission 2.
+Status: frozen protocol for the v1 evidence release
 
-## 1. Study Scope
+Study: *Deep Reinforcement Learning for HPC Job Scheduling: A Statistical Evaluation*
 
-- Thesis title:
-- Submission milestone:
-- Date updated:
-- Author:
+Owner: Justin M. Cheney
 
-## 2. Research Questions and Hypotheses
+Last updated: 2026-08-30
 
-### Research Questions
+## Research objective
 
-- RQ1:
-- RQ2:
-- RQ3:
+Identify low-resource DRL scheduling treatments that retain at least 90% of the best observed schedule quality on heterogeneous HPC workloads, while testing whether algorithm family or action masking produces repeatable differences.
 
-### Hypotheses
+Research questions:
 
-- H1:
-- H2:
-- H3:
-- H4:
+1. Do PPO, A2C, and DQN families differ on waiting and slowdown metrics?
+2. Does action masking improve schedule quality, or chiefly enforce feasible decisions?
+3. Do development conclusions persist on an isolated time-ordered holdout and against heuristic/random controls?
 
-## 3. Algorithm Set
+The analysis uses two-sided non-parametric repeated-measures tests at `alpha=0.05`. Absence of statistical significance is not treated as evidence of equivalence; the paper's equivalence tables use separately declared practical margins.
 
-| Algorithm | Family | Masking | Implementation package | Notes |
-|---|---|---|---|---|
-| MaskablePPO | Policy gradient | Yes | sb3-contrib | |
-| MaskableA2C | Actor-critic | Yes | local (`src/`) | custom implementation |
-| MaskableDQN | Value-based | Yes | local (`src/`) | custom implementation |
-| PPO | Policy gradient | No | stable-baselines3 | |
-| A2C | Actor-critic | No | stable-baselines3 | |
-| DQN | Value-based | No | stable-baselines3 | |
+## Treatments and controls
 
-Controls are LCFS, SJF, and UNICEP plus a seed-paired masked uniform-random policy. The primary heuristic comparison disables backfill so the mechanism matches what the DRL policies can do; backfill-enabled runs are retained only as a sensitivity band. `baseline_backfill` controls this explicitly and treatment IDs distinguish `bf` from `nobf`.
+| Treatment | Family | Masking | Implementation |
+|---|---|---:|---|
+| PPO | policy gradient | no | stable-baselines3 |
+| A2C | actor-critic | no | stable-baselines3 |
+| DQN | value-based | no | stable-baselines3 |
+| MaskablePPO | policy gradient | yes | sb3-contrib |
+| MaskableA2C | actor-critic | yes | local `src/a2c_mask.py` |
+| MaskableDQN | value-based | yes | local `src/dqn_mask.py` |
 
-## 4. Environment and Data
+Controls are LCFS, SJF, and UNICEP plus a seed-paired masked uniform-random policy. The primary heuristic comparison disables backfill to match the mechanism available to the DRL policies. Backfill-enabled controls form a sensitivity band only; treatment IDs distinguish `bf` from `nobf`.
 
-- Environment implementation path:
-- Primary traces:
-- Topologies:
-- Allocator policy:
+## Environment and workloads
 
-### Data Governance
+HPCSim is a trace-driven Gymnasium environment using a best-fit allocator. The selector observes the queue/cluster state and chooses a job; maskable treatments cannot choose infeasible actions.
 
-- Development/train split definition: first 70% of trace rows after stable time sort on `Submit` (`*_dev70.tsv`)
-- Final holdout definition: last 30% of trace rows after stable time sort on `Submit` (`*_holdout30.tsv`)
-- Optional blocked CV configuration: allowed on development/train partition only
-- Leakage prevention controls: script-level holdout guard in `train_agents.py` rejects holdout-like trace paths
+| Trace | Source rows | Topology |
+|---|---:|---|
+| `physical_job` | 84,135 | `physical_topology.txt` |
+| `deeplearn_job` | 68,720 | `deeplearn_topology.txt` |
 
-## 5. Training Protocol
+Exact input formats are defined in [`HPCSim.md`](HPCSim.md). The Snakefile derives topology from `trace_name`.
 
-- Timesteps per run: total steps = `save_interval × total_saving`. Production: `100000 × 30 = 3M`. Smoke: `100 × 2 = 200`.
-- Seed set: fixed seed for smoke reproducibility (e.g. `123456`); production uses 10 seeds (`config.yaml`).
-- Hyperparameter source: `config.yaml` (`batch_size`, `n_epochs`, `learning_rate`, `n_envs`, `window_size`, `tail_size`, `buffer_size`).
-- Checkpoint cadence: every `save_interval` steps to `trained_model/<trace>/<seed>/<algo>/selector/<step>.zip`.
-- Logging: manifest row per run in `logs/run_log.csv`; per-rule logs under `logs/snakemake/<trace>/`.
+## Data governance
 
-### Command Template
+Each trace is stable-sorted by `Submit`. The earliest 70% is development; the latest 30% is holdout. There is no random shuffle. Training, statistical comparison, and selection use development only. All six frozen treatments are evaluated on holdout for final reporting; holdout does not feed tuning or selection. See [`data_split_policy.md`](data_split_policy.md).
+
+## Training protocol
+
+Production configuration is six treatments × ten fixed seeds per trace. Each run uses 3M timesteps (`save_interval=300000`, `total_saving=10`), `n_envs=20`, `window_size=512`, `tail_size=64`, batch size 2048, five optimization epochs, and linear learning-rate decay from `3e-4`. `config.yaml` is the hyperparameter authority.
 
 ```bash
-python -m src.train_agents --algorithm <algo> --name <run_name> \
-  --trace data/splits/<trace>_dev70.tsv --seed <seed> \
-  --save_interval <n> --total_saving <k>
+python -m src.train_agents \
+  --algorithm <algorithm> --name <run-name> --trace data/splits/<trace>_dev70.tsv \
+  --seed <seed> --save_interval 300000 --total_saving 10
 ```
 
-Note for DQN smoke on high-dimensional dict observations:
+Training records the treatment, masking mode, seed, split ID, model path, input paths, Git commit, command, and timestamps through manifest and metadata sidecars.
 
-- use reduced replay buffer to avoid memory exhaustion, e.g. `--buffer-size 2000`.
+## Evaluation and selection
 
-## 6. Evaluation Protocol
+Development and holdout policy evaluation is deterministic (`eval_deterministic: true`). Production evaluation is uncapped and partial rows are rejected. Smoke evaluation is explicitly capped and may be aggregated only because `config.smoke.yaml` sets `allow_partial_evaluation: true`.
 
-- Deterministic/stochastic policy mode: `eval_deterministic` (config; default deterministic).
-- Development evaluation trace: the `*_dev70.tsv` split each model trained on (from the manifest).
-- Holdout evaluation: after development-only selection, all six DRL treatments are evaluated across all configured seeds on the reserved `*_holdout30.tsv` split (`holdout_eval` → `holdout_aggregate` → `result/<trace>/holdout/holdout_summary.csv`) for final reporting. This is the only use of the holdout; no tuning or selection is performed on it.
-- Evaluation outputs: per-run metrics CSV/JSON under `result/<trace>/eval_runs/runs/`; holdout under `result/<trace>/holdout/`.
-- Resource profiling: per-decision latency (`decision_latency_mean_ms`) and eval wall time captured per run.
+Per-run outputs record completion state, termination reason, requested cap, decisions, completed jobs, scheduling metrics, wall time, and decision latency. Development seed summaries feed Pareto selection using configured metrics and confidence-interval tie-breakers. Nemenyi results remain reported evidence, not an elimination rule.
 
-### Command Template
+All six treatments then run on holdout across all ten seeds. This is final reporting, not a second selection pass.
 
-```bash
-python -m src.evaluate_agents --manifest logs/run_log.csv \
-  --output-dir result/<trace>/eval_runs \
-  --filter-seed <seed> --filter-algo <algo> --deterministic
-```
+## Metrics
 
-## 7. Metrics
+Primary, lower is better:
 
-### Primary Metrics
+- average waiting time;
+- average slowdown.
 
-- average waiting time
-- average slowdown
+Secondary:
 
-### Secondary Metrics
+- maximum waiting time (lower);
+- maximum slowdown (lower);
+- average turnaround time (lower);
+- CPU utilization (higher);
+- GPU utilization where applicable (higher).
 
-- max waiting time
-- max slowdown
-- average turnaround
-- CPU utilization
-- node utilization
+Resource evidence:
 
-### Resource Metrics
+- training wall-clock;
+- evaluation wall-clock;
+- inference decision latency;
+- recorded memory footprint where available.
 
-- training wall-clock
-- inference decision latency
-- peak memory footprint
+## Statistical workflow
 
-## 8. Statistical Workflow
+For each metric, paired seed observations are analyzed by:
 
-Sequence (as implemented in `src/statistical_test.py`):
+1. Shapiro-Wilk as a report-only distribution diagnostic;
+2. Friedman omnibus test;
+3. Kendall's W effect size;
+4. Nemenyi post-hoc when the omnibus test is significant;
+5. paired Wilcoxon-based confidence intervals;
+6. Page trend test for ordered behavior;
+7. critical-difference inputs for rank visualization;
+8. configured Pareto and CI tie-breaking on development.
 
-1. Shapiro-Wilk (normality diagnostic only; report-only, non-blocking)
-2. Friedman (omnibus non-parametric repeated-measures)
-3. Kendall's W (effect size for the Friedman result)
-4. Nemenyi post-hoc (only if Friedman is significant) → `pairwise_nemenyi.csv`
-5. Wilcoxon signed-rank non-parametric CIs (pairwise) → `confidence_intervals.csv`
-6. Page trend test (convergence/ordering) → `page_trend.csv`
-7. CD diagram inputs → `cd_diagram_input.csv`
-8. Pareto analysis (in `select_best`)
-
-Notes:
-
-- Friedman is sometimes critiqued for low power, but can be adequate when the number of groups is five or more (Mangiafico). Alternative higher-power options (Quade, ART ANOVA) are considered optional extensions rather than core pipeline steps.
-
-### Command Template
+Deterministic heuristic comparisons use one-sample Wilcoxon tests against the fixed heuristic value. The stochastic random control is retained descriptively and compared through its seed-paired evidence rather than treated as a deterministic constant.
 
 ```bash
-python -m src.statistical_test --seed-summary result/<trace>/aggregate/seed_summary.csv \
+python -m src.statistical_test \
+  --input result/<trace>/aggregate/seed_summary.csv \
   --output-dir result/<trace>/stats --alpha 0.05
 ```
 
-## 9. Output Contracts
+## Output contracts
 
-- Training outputs:
-- Evaluation metrics files:
-- Aggregated summary tables:
-- Statistical results files:
-- Plot outputs:
+The machine-readable schemas and directory contracts are defined in [`result_schema.md`](result_schema.md). The curated v1 publication includes only aggregate seed/treatment summaries, statistical tables, selection rationale, and paper-facing evidence. Raw runs, models, logs, and generated splits are excluded.
 
-## 10. Threats to Validity
+## Threats to validity
 
-- Internal validity:
-- External validity:
-- Construct validity:
-- Mitigation actions:
+- **Internal:** historical unmasked paper rows were capped, and two physical source evaluations duplicate scheduling metrics with different timing. Both are disclosed in `results/v1/`.
+- **External:** two traces from one upstream environment do not establish cross-centre generality.
+- **Statistical:** ten seeds limit power for small effects and make rank conclusions sensitive to variance.
+- **Construct:** waiting/slowdown and utilization do not capture every operational objective, including fairness, energy, and failures.
+- **Implementation:** locally implemented maskable A2C/DQN may differ from other libraries despite shared interfaces.
 
-## 11. Reproducibility Metadata
+## Reproducibility record
 
-- Git commit hash:
-- Nix environment version:
-- Seeds used:
-- Split ID:
-- Command logs location:
+The frozen release records source commit `fae1c739dd8e1743cd61d9cf909b23fa6e7d32a1`; the public result-bundle base is `fa0e299b58fa5ce297bb52a439d82658330600df`. Seeds, split IDs, source hashes, commands, artifact hashes, and provenance caveats are in [`../results/v1/manifest.json`](../results/v1/manifest.json). Validate with `python scripts/validate_results_release.py`.

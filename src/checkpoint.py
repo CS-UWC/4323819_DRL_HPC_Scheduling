@@ -5,7 +5,7 @@ existing checkpoint filename convention: trained_model/{name}/selector/{step}.zi
 
 SB3's CheckpointCallback hardcodes {name_prefix}_{steps}_steps.{ext}, which
 would break evaluate_agents.py's manifest-driven model loading and the
-expected paths documented in docs/smoke_evidence_template.md. Overriding
+checkpoint contract documented in docs/result_schema.md. Overriding
 _checkpoint_path() is the only change needed — _on_step(), save_replay_buffer,
 and save_vecnormalize all continue to work unchanged since they call this
 method rather than building the path themselves.

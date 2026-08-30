@@ -1,161 +1,144 @@
-# Intelligent Job Scheduling for HPC Systems
-### A Statistical Evaluation of Deep Reinforcement Learning Approaches
+# Deep Reinforcement Learning for HPC Job Scheduling: A Statistical Evaluation
 
-**Justin M. Cheney** · University of the Western Cape · 2026
+**Justin M. Cheney · University of the Western Cape · 2026**
 
-This repository is the authoritative implementation and reproducibility source for the study.
+This is the authoritative implementation and reproducibility repository for a statistical comparison of low-resource deep reinforcement learning (DRL) schedulers. The study asks which DRL family, with or without action masking, best schedules heterogeneous HPC workloads while retaining at least 90% of full-model performance.
 
-Over the past three decades, supercomputers and their workloads have become increasingly complex. Scheduling systems have evolved from traditional heuristics to Deep Reinforcement Learning (DRL) approaches that adapt policies to specific workloads. Though several studies develop DRL schedulers, no clear consensus exists on the optimal algorithm family. This project trains and evaluates representative algorithms from three DRL families — DQN, PPO, and A2C — with and without action masking, on real heterogeneous Slurm traces (~84k jobs). Statistical testing (Friedman, Nemenyi, Wilcoxon-based confidence intervals) determines whether significant performance differences exist across five industry-standard metrics.
+## Study at a glance
 
----
+| Item | Design |
+|---|---|
+| Treatments | PPO, A2C, DQN, MaskablePPO, MaskableA2C, MaskableDQN |
+| Workloads | `physical_job` (84,135 jobs) and `deeplearn_job` (68,720 jobs) |
+| Split | Earliest 70% development; latest 30% isolated holdout; no shuffle |
+| Production scale | 10 seeds × 6 treatments × 2 traces; 3M training steps per run |
+| Controls | LCFS, SJF, UNICEP, and masked uniform-random selection |
+| Primary metrics | Average waiting time and average slowdown |
+| Analysis | Friedman, Kendall's W, Nemenyi, Wilcoxon CIs, Page trend, and Pareto selection |
 
-## Dependencies
+Development data is the only surface used for model selection. All six treatments are evaluated on holdout for final reporting, but the holdout is never used for tuning or selection. See the versioned [methodology protocol](docs/methodology_protocol.md) and [split policy](docs/data_split_policy.md).
 
-Only one of the following is needed to get started — the rest of the environment is installed automatically:
-  
-| Method | Requirement |
-|--------|-------------|
-| **Nix** (recommended) | [Nix](https://nixos.org/download/) with flakes enabled |
-| **pip** (portability path) | Python ≥ 3.11 plus the system tools documented in [`docs/setup.md`](docs/setup.md) |
+## Findings
 
----
+[`results/v1/README.md`](results/v1/README.md) is the evidence authority for these summaries and their caveats.
 
-## Setup
+- **Physical trace:** no learned treatment outperformed the masked random control ([summary](results/v1/tables/paper/physical_main.csv), [paired comparison](results/v1/tables/paper/physical_vs_random.csv)).
+- **Deeplearn trace:** MaskablePPO improved tail behaviour, but the leading treatments did not separate statistically at ten seeds ([summary](results/v1/tables/paper/deeplearn_main.csv), [ranks](results/v1/figures/deeplearn_cd_diagram_avg_waiting.png)).
+- **Overall:** masking chiefly supplied deployability by preventing invalid actions; it did not provide a general schedule-quality advantage.
 
-### Nix (recommended)
-
-Nix provides a fully reproducible, content-addressed environment — every dependency including the Python interpreter is pinned via `flake.lock`.
+The curated [`results/v1/`](results/v1/) release contains the paper-facing tables, summaries, figures, selection rationale, and a machine-readable [provenance manifest](results/v1/manifest.json). Verify it with:
 
 ```bash
-# 1. Install Nix (if not already installed)
-sh <(curl -L https://nixos.org/nix/install) --daemon
+python scripts/validate_results_release.py
+```
 
-# 2. Enable flakes (add to ~/.config/nix/nix.conf)
-experimental-features = nix-command flakes
+## Requirements
 
-# 3. Enter the development shell
+**Nix is the reproducibility path.** The flake currently targets `x86_64-linux` and pins Python, PyTorch, Snakemake, `just`, Graphviz, and the analysis stack.
+
+```bash
 nix develop
 ```
 
-All subsequent `just` and `python -m src.*` commands should be run inside `nix develop`.
-
-### pip portability path
-
-An unpinned `requirements.txt` derived from `flake.nix` is provided for environments where Nix is unavailable:
+The pip path is best-effort portability for Python 3.11+:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-See [`docs/setup.md`](docs/setup.md) for the additional system tools required by the workflow.
+Pip does not install `just`, Graphviz, Apptainer, or `rsync`; install the tools needed by your workflow separately. GPU execution requires a compatible host NVIDIA driver. The Nix environment uses `torch-bin`'s bundled user-space CUDA runtime, while SLURM container jobs expose the host driver with Apptainer `--nv`.
 
-> Note: GPU support (CUDA) requires a compatible PyTorch installation for your platform. Under Nix, CUDA is handled automatically by the flake.
+Detailed setup: [Wiki Setup](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Setup) ([reviewable source](wiki/Setup.md)).
 
----
+## Shortest reproduction path
 
-## Running the Pipeline
+From the repository root:
 
-The full workflow is managed by [Snakemake](https://snakemake.readthedocs.io) and orchestrated through [`just`](https://just.systems) — a command runner that wraps the verbose Snakemake invocations into short, memorable commands. No need to remember `--configfile`, `--profile`, or `--cores` flags.
+```bash
+nix develop
+just dry_run_smoke physical
+just run_smoke physical
+```
 
-### Local
+This runs the small, capped integration workflow; it validates file contracts, not scientific performance. Generated outputs land under `result/physical_job/` and are not committed.
 
-| Command | Description |
-|---------|-------------|
-| `just dry_run_smoke` | Validate the smoke DAG without running any jobs |
-| `just run_smoke` | Smoke test — fast end-to-end validation (~200 steps) |
-| `just run_full` | Full pipeline: train → eval → aggregate → stats |
-| `just clean` | Remove outputs; preserve logs |
-| `just clean_all` | Remove all outputs including logs (full reset) |
+### Essential commands
 
-### Cluster (SLURM)
+```bash
+# Local
+just dry_run physical
+just run_full physical
+just run_full deeplearn
 
-| Command | Description |
-|---------|-------------|
-| `just dry_run_slurm` | Validate the production DAG for cluster submission |
-| `just dry_run_smoke_slurm` | Validate the smoke DAG for cluster submission |
-| `just run_smoke_slurm` | Submit smoke test to SLURM |
-| `just run_full_slurm` | Submit full pipeline to SLURM |
+# SLURM / Apptainer
+just dry_run_slurm physical
+just run_full_slurm physical
+just run_full_slurm deeplearn
 
-Run `just help` to see all available targets.
+# Checks
+python -m unittest discover -s tests -v
+python scripts/validate_results_release.py
+```
 
----
+Trace arguments are positional: use `just run_full deeplearn`, not `TRACE=deeplearn`. `just help` is the command authority.
 
-## Results
+## Repository layout
 
-The full experiment is complete: six DRL treatments were evaluated with ten seeds on each of two traces. Development data was used for selection; all six treatments were then evaluated on the isolated time-ordered holdout for final reporting.
+```text
+Snakefile, config*.yaml  workflow and experiment configuration
+src/                    simulator, training, evaluation, aggregation, and statistics
+tests/                  focused pipeline-contract checks
+data/                    distributable source traces and cluster topology
+docs/                    versioned protocols and file contracts
+wiki/                    reviewable source for the GitHub Wiki
+profiles/slurm/          Snakemake SLURM profile
+results/v1/              immutable curated evidence release
+```
 
-- **Physical trace:** no learned DRL treatment outperformed the masked random control ([summary](results/v1/tables/paper/physical_main.csv), [paired comparison](results/v1/tables/paper/physical_vs_random.csv)).
-- **Heterogeneous deeplearn trace:** MaskablePPO improved tail behaviour, but no leading DRL treatment separated statistically at ten seeds ([summary](results/v1/tables/paper/deeplearn_main.csv), [ranks](results/v1/figures/deeplearn_cd_diagram_avg_waiting.png)).
-- **Overall:** masking supplied deployability rather than a general schedule-quality advantage.
+HPCSim trace, node, and topology formats are defined in [`docs/HPCSim.md`](docs/HPCSim.md); output schemas are defined in [`docs/result_schema.md`](docs/result_schema.md).
 
-See the curated [`results/v1/`](results/v1/) release and its machine-readable [provenance manifest](results/v1/manifest.json). Unmasked-treatment truncation and two duplicate physical timing observations are documented there.
+## Detailed guides
 
----
+The [GitHub Wiki](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki) follows the same task order as this README:
 
-## HPCSim Environment
+- [Setup](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Setup)
+- [Local workflow](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Local-Workflow)
+- [HPC / SLURM workflow](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/HPC-SLURM-Workflow)
+- [Data and splits](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Data-and-Splits)
+- [Configuration reference](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Configuration-Reference)
+- [Results and interpretation](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Results-and-Interpretation)
+- [Troubleshooting](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Troubleshooting)
+- [Contributing](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Contributing)
 
-This project uses **HPCSim** — a lightweight, trace-driven Gymnasium environment for HPC scheduling research — as its simulation backend. HPCSim was developed by Wang et al. (2025).
+Until the repository owner initializes GitHub Wiki, the same pages are reviewable under [`wiki/`](wiki/README.md).
 
-For environment configuration, trace format, node file format, and topology format, see [`docs/HPCSim.md`](docs/HPCSim.md).
+## Limitations
 
----
+- The two workloads come from one upstream HPCSim/Slurm source and do not establish cross-centre generality.
+- Ten seeds limit power for small pairwise effects.
+- Historical unmasked evaluations contain documented truncation, and the physical source snapshot contains two duplicate timing observations; neither issue is hidden in the release.
+- The published bundle excludes raw runs and checkpoints to avoid duplicating large generated artifacts.
 
-## Citations
+See [`results/v1/README.md`](results/v1/README.md) for the full release caveats.
+
+## Citation
 
 ```bibtex
-@article{Wang2025_1,
-  author    = {Lingfei Wang and Maria A. Rodriguez and Nir Lipovetzky},
-  title     = {Optimizing {HPC} scheduling: a hierarchical reinforcement learning
-               approach for intelligent job selection and allocation},
-  journal   = {Journal of Supercomputing},
-  year      = {2025},
-  volume    = {81},
-  number    = {8},
-  month     = {June},
-  publisher = {Springer},
-  doi       = {10.1007/s11227-025-07396-3}
+@thesis{Cheney2026DRLScheduling,
+  author      = {Justin M. Cheney},
+  title       = {Deep Reinforcement Learning for HPC Job Scheduling:
+                 A Statistical Evaluation},
+  institution = {University of the Western Cape},
+  type        = {Honours thesis},
+  year        = {2026},
+  url         = {https://github.com/JCheney20/DRL_HPC_Scheduling}
 }
 ```
 
-```bibtex
-@article{Carrasco2020,
-  author    = {Carrasco, Jac{\'i}nto and Garc{\'i}a, Salvador and Rueda, M Mar
-               and Das, Swagatam and Herrera, Francisco},
-  title     = {Recent trends in the use of statistical tests for comparing swarm
-               and evolutionary computing algorithms: Practical guidelines and a
-               critical review},
-  journal   = {Swarm and Evolutionary Computation},
-  volume    = {54},
-  pages     = {100665},
-  year      = {2020},
-  publisher = {Elsevier}
-}
-```
+HPCSim is derived from Wang, Rodriguez, and Lipovetzky (2025), [doi:10.1007/s11227-025-07396-3](https://doi.org/10.1007/s11227-025-07396-3).
 
-```bibtex
-@article{Mölder2025,
-  author  = {M{\"o}lder, F and Jablonski, KP and Letcher, B and Hall, MB and
-             van Dyken, PC and Tomkins-Tinch, CH and Sochat, V and Forster, J
-             and Vieira, FG and Meesters, C and Lee, S and Twardziok, SO and
-             Kanitz, A and VanCampen, J and Malladi, V and Wilm, A and
-             Holtgrewe, M and Rahmann, S and Nahnsen, S and K{\"o}ster, J},
-  title   = {Sustainable data analysis with Snakemake
-             [version 3; peer review: 2 approved]},
-  journal = {F1000Research},
-  volume  = {10},
-  number  = {33},
-  year    = {2025},
-  doi     = {10.12688/f1000research.29032.3}
-}
-```
+## License
 
-```bibtex
-@inproceedings{Dolstra2004,
-  author    = {Dolstra, Eelco and de Jonge, Merijn and Visser, Eelco},
-  title     = {Nix: A Safe and Policy-Free System for Software Deployment},
-  booktitle = {Proceedings of the 18th USENIX Large Installation System
-               Administration Conference (LISA)},
-  year      = {2004},
-  pages     = {79--92}
-}
-```
+Code is released under the [MIT License](LICENSE). Dataset use remains subject to the upstream source and institutional conditions described in [`docs/data.md`](docs/data.md).

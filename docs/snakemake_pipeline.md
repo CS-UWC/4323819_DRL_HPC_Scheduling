@@ -20,13 +20,14 @@ make_split
                         └─> stats
                               └─> select_best ─┬─> holdout_eval ─> holdout_aggregate ─┐
                                                └─> visualise ──────────────────────────┤
-   baseline ─> baseline_aggregate ─> baseline_compare ──────────────────────────────────┘
+   baseline + random ─> baseline_aggregate ─> baseline_compare ─────────────────────────┤
+   baseline_holdout + random ─> baseline_holdout_aggregate ─────────────────────────────┘
 ```
 
 `holdout_eval` runs all six DRL treatments across the configured seeds on the
 reserved holdout split for final reporting. The holdout remains excluded from
 training, tuning, and selection. `rule all` requires `visualise`,
-`baseline_compare`, and `holdout_aggregate`.
+`baseline_compare`, `holdout_aggregate`, and `baseline_holdout_aggregate`.
 
 `train_agent` and `eval_run` fan out over the cross product of `seeds` ×
 `algorithms` (production: 10 × 6 = 60 of each). The baseline branch
@@ -44,9 +45,10 @@ training, tuning, and selection. `rule all` requires `visualise`,
 | `select_best` | `src.select_best` | stats + aggregate | `result/<trace>/best/best_algorithm.json` |
 | `holdout_eval` | `src.evaluate_agents` | all trained treatments + holdout split | `result/<trace>/holdout/runs/*.csv` (all six treatments × configured seeds, via `--eval-trace`) |
 | `holdout_aggregate` | `src.aggregate_results` | holdout runs | `result/<trace>/holdout/holdout_summary.csv` |
-| `baseline` | `src.run_baseline` | dev split | `result/<trace>/baseline/.heuristics_complete`, manifest in `logs/baseline_run_log.csv` |
-| `baseline_aggregate` | `src.baseline_aggregate` | heuristic completion marker + baseline rows | `result/<trace>/baseline/{baseline_summary,baseline_eval_wide}.csv` |
-| `baseline_compare` | `src.baseline_compare` | best + summaries | `result/<trace>/baseline/{baseline_comparison,descriptive_comparison_table}.csv` |
+| `baseline` / `baseline_random` | `src.run_baseline` / `src.random_control` | dev split | deterministic heuristic rows plus seeded random-control rows under `result/<trace>/baseline/` |
+| `baseline_aggregate` | `src.baseline_aggregate` | heuristic/random completion markers + rows | `result/<trace>/baseline/{baseline_summary,baseline_eval_wide}.csv` |
+| `baseline_compare` | `src.baseline_compare` | best + summaries | deterministic one-sample tests and descriptive table under `result/<trace>/baseline/` |
+| `baseline_holdout*` | same control scripts | holdout split | `result/<trace>/baseline_holdout/baseline_summary.csv` |
 | `visualise` | `src.visualise` | best + stats + aggregate | plots under `plots/`, `.visualise_complete` marker |
 
 ## 4. Config
@@ -91,5 +93,5 @@ SLURM runner settings (executor, jobs, container, resources) live **only** in
 just dry_run_smoke                                   # validate smoke DAG
 just run_smoke                                       # local smoke run
 snakemake --configfile config.yaml --profile profiles/slurm   # full run on cluster
-just run_full_slurm TRACE=deeplearn_job              # full run, GPU trace
+just run_full_slurm deeplearn                        # full run, GPU trace
 ```

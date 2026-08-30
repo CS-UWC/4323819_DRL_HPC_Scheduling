@@ -7,6 +7,7 @@ runtime dependencies at module load time.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import types
@@ -123,6 +124,30 @@ class PipelineContractTests(unittest.TestCase):
             with patch.object(sys, "argv", [*args, "--allow-partial"]):
                 aggregate_main()
             self.assertTrue((root / "aggregate" / "eval_wide.csv").exists())
+
+    def test_archive_copies_only_the_requested_trace_models(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "result/physical_job/best").mkdir(parents=True)
+            (root / "result/physical_job/best/best_algorithm.json").write_text(
+                json.dumps({"treatment_id": "ppo__mask_false"})
+            )
+            (root / "logs").mkdir()
+            (root / "models").mkdir()
+            (root / "models/physical.zip").write_text("physical")
+            (root / "models/deeplearn.zip").write_text("deeplearn")
+            pd.DataFrame([
+                {"split_id": "physical_job_r70", "model_path": "models/physical.zip"},
+                {"split_id": "deeplearn_job_r70", "model_path": "models/deeplearn.zip"},
+            ]).to_csv(root / "logs/run_log.csv", index=False)
+            subprocess.run(
+                ["bash", str(Path(__file__).parents[1] / "src/archive_results.sh"),
+                 "physical_job", str(root / "archive")],
+                cwd=root, check=True, capture_output=True, text=True,
+            )
+            archived = root / "archive/physical_job/models/models"
+            self.assertTrue((archived / "physical.zip").exists())
+            self.assertFalse((archived / "deeplearn.zip").exists())
 
     def test_random_control_is_descriptive_not_a_deterministic_baseline_test(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

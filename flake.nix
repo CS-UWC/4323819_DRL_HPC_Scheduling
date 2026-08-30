@@ -29,7 +29,7 @@
         };
       };
 
-      # Single package set (CPU-only config). No global cudaSupport needed.
+      # Single package set without global cudaSupport; torch-bin supplies CUDA user space.
       pkgs = import nixpkgs-stable {
         inherit system;
         config = { allowUnfree = true; };
@@ -54,7 +54,7 @@
       devShells.${system}.default = pkgs.mkShell {
         # Optional: expose GPU on nvidia hosts via host driver
         LD_LIBRARY_PATH = "/run/opengl-driver/lib";
-        packages = [ myPythonEnv pkgs.snakemake pkgs.graphviz pkgs.just pkgs.skopeo pkgs.apptainer pkgs.tmux ];
+        packages = [ myPythonEnv pkgs.snakemake pkgs.graphviz pkgs.just pkgs.skopeo pkgs.apptainer pkgs.rsync pkgs.tmux ];
       };
 
       # GPU-enabled PyTorch without pulling cudaSupport into every other package.

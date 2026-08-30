@@ -1,186 +1,40 @@
-# Dataset Documentation
+# Dataset Provenance
 
-## Overview
+This repository distributes two tab-separated Slurm accounting traces obtained with the upstream HPCSim/HeraSched research artifacts:
 
-This project uses **real Slurm trace logs** from production HPC clusters to ensure realistic evaluation.
+| File | Rows | Submit range | Size |
+|---|---:|---|---:|
+| `data/physical_job.csv` | 84,135 | 2022-09-23 to 2022-09-30 | ~22 MB |
+| `data/deeplearn_job.csv` | 68,720 | 2021-09-20 to 2022-09-30 | ~20 MB |
 
-**What's in the repo:**
-- Trace CSVs **are committed**: `data/physical_job.csv`, `data/deeplearn_job.csv` (~42 MB total).
-- Topologies + node inventory: `data/topology/{physical_topology.txt,deeplearn_topology.txt,nodes.csv}`.
-- Train/holdout splits are **not** committed — they are regenerated deterministically by `make_split` (`data/splits/`, gitignored).
+Associated cluster inputs are:
 
----
+- `data/topology/physical_topology.txt`;
+- `data/topology/deeplearn_topology.txt`;
+- `data/topology/nodes.csv`.
 
-## Primary Datasets
+[`docs/HPCSim.md`](HPCSim.md) is the sole format authority for traces, nodes, and topology. This page records provenance only; it deliberately does not maintain a second schema.
 
-### 1. `physical_job.csv` (CPU Cluster)
+## Source
 
-**Source:** Production Slurm logs from heterogeneous CPU cluster  
-**Period:** [To be filled]  
-**Jobs:** ~84,000  
-**Nodes:** 87 heterogeneous nodes  
-**Characteristics:**
-- Mixed CPU architectures
-- Varying memory capacities (32GB - 256GB)
-- Heterogeneous core counts (8 - 64 cores/node)
+Original environment and trace source:
 
-**Schema:**
-```
-job_id, submit_time, wait_time, run_time, num_nodes, num_cores, memory_req, user_id, partition
-```
+- HeraSched/HPCSim: <https://gitlab.unimelb.edu.au/lingfeiw/herasched>
+- Wang, Rodriguez, and Lipovetzky (2025), <https://doi.org/10.1007/s11227-025-07396-3>
 
-**Preprocessing:**
-- Removed failed/cancelled jobs
-- Anonymized user IDs
-- Filtered jobs with missing resource specifications
+The checked-in files preserve the upstream operational columns, including numeric `UID`/`GID`, account, partition, resource requests, timestamps, and final job state. They have not been rewritten into a simplified schema.
 
----
+## Split generation
 
-### 2. `deeplearn_job.csv` (GPU Cluster)
-
-**Source:** Production Slurm logs from GPU cluster  
-**Period:** [To be filled]  
-**Jobs:** ~28,000  
-**Nodes:** 28 heterogeneous GPU nodes  
-**Characteristics:**
-- Mixed GPU types (V100, A100)
-- Varying VRAM (16GB - 80GB)
-- CPU+GPU heterogeneity
-
-**Schema:**
-```
-job_id, submit_time, wait_time, run_time, num_gpus, gpu_type, cpu_cores, memory_req, user_id, partition
-```
-
-**Preprocessing:**
-- Same as `physical_job.csv`
-- GPU type encoding (0=V100, 1=A100, etc.)
-
----
-
-## Cluster Topologies
-
-### `physical_topology.txt`
-
-Adjacency list representation of the physical cluster network topology.
-
-**Format:**
-```
-node_id neighbor_id_1 neighbor_id_2 ...
-```
-
-**Example:**
-```
-0 1 2
-1 0 3 4
-2 0 5
-...
-```
-
-Used for **topology-aware allocation** in classical baselines.
-
----
-
-### `deeplearn_topology.txt`
-
-GPU cluster topology (similar format).
-
----
-
-## Obtaining the Datasets
-
-### Option 1: Official HPCSim Release (Recommended)
-
-The canonical release for the HPCSim environment and Slurm traces is the Wang et al. repository:
-
-- https://gitlab.unimelb.edu.au/lingfeiw/herasched
-
-### Option 2: Use Publicly Available Traces
-
-Alternative datasets with similar characteristics:
-
-1. **Parallel Workloads Archive**  
-   URL: [https://www.cs.huji.ac.il/labs/parallel/workload/](https://www.cs.huji.ac.il/labs/parallel/workload/)  
-   Suggested traces: ANL-Intrepid, SDSC-SP2, CEA-Curie
-
-2. **Grid Workloads Archive**  
-   URL: [http://gwa.ewi.tudelft.nl/](http://gwa.ewi.tudelft.nl/)
-
----
-
-## Data Statistics
-
-### Physical Cluster (`physical_job.csv`)
-
-| Metric | Value |
-|--------|-------|
-| Total jobs | 84,127 |
-| Avg wait time | 2,098s |
-| Avg slowdown | 15.21 |
-| Max wait time | 81,105s |
-| Avg job duration | 3,245s |
-| Node utilization | 68.4% |
-| CPU utilization | 72.1% |
-
-### GPU Cluster (`deeplearn_job.csv`)
-
-| Metric | Value |
-|--------|-------|
-| Total jobs | 28,543 |
-| Avg wait time | [TBD] |
-| Avg slowdown | [TBD] |
-| GPU utilization | [TBD] |
-
----
-
-## Data Validation
-
-`make_split` is the integrity gate: it reads a trace, stable-sorts by `Submit`,
-splits 70/30, and writes a metadata JSON (`data/splits/logs/<trace>_r70.json`)
-recording source, row counts, ratio, and split id. Run it first:
+Generated train/holdout files are intentionally not committed. Recreate them deterministically:
 
 ```bash
 python -m src.make_split --src physical_job --ratio 0.7 --out-dir data/splits/
+python -m src.make_split --src deeplearn_job --ratio 0.7 --out-dir data/splits/
 ```
 
-Training additionally rejects any trace path containing `holdout`
-(case-insensitive), so the final holdout can never be used for tuning.
+The script stable-sorts on `Submit`, writes earliest-70% development and latest-30% holdout files, and records metadata under `data/splits/logs/`. The authoritative governance rules are in [`docs/data_split_policy.md`](data_split_policy.md).
 
----
+## Governance
 
-## Privacy & Ethics
-
-All datasets used in this project:
-- Have been **anonymized** (user IDs hashed)
-- Contain **no personally identifiable information**
-- Are used strictly for **academic research purposes**
-- Comply with institutional data policies
-
----
-
-## Citation
-
-If using the datasets and HPCSim environment, please cite:
-
-```bibtex
-@article{Wang2025_1,
-  author = {Lingfei Wang and Maria A. Rodriguez and Nir Lipovetzky},
-  title = {Optimizing {HPC} scheduling: a hierarchical reinforcement learning approach for intelligent job selection and allocation},
-  journal = {Journal of Supercomputing},
-  year = {2025},
-  volume = {81},
-  number = {8},
-  month = {June},
-  publisher = {Springer},
-  doi = {10.1007/s11227-025-07396-3}
-}
-```
-
-```bibtex
-@misc{Cheney2026hpc_data,
-  title={HPC Job Scheduling Traces for DRL Evaluation},
-  author={Cheney, Justin M.},
-  year={2026},
-  howpublished={\url{https://github.com/[username]/HPC-DRL-Scheduler}}
-}
-```
+The traces contain upstream-anonymized scheduler records, not synthetic data. Do not attempt re-identification. Before redistributing raw or derived traces, verify the upstream repository's current license, institutional data policy, and any cluster-specific restrictions. The public results release contains only aggregate summaries and paper-facing evidence.

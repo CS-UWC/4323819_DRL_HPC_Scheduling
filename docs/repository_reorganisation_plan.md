@@ -1,6 +1,6 @@
 # Repository Reorganisation Plan
 
-Status: Phase 0–1 implemented and locally contract-tested, 2026-08-30
+Status: Phases 0–4 implemented and locally validated, 2026-08-30
 
 ## Goal
 
@@ -18,7 +18,7 @@ This plan uses Matt Pocock's codebase-design vocabulary. The pipeline stages are
 
 ## Review summary
 
-### Blockers identified by the review
+### Blockers identified by the review (resolved in Phases 0–4)
 
 1. **Baseline output race**
    - `src/HPCsim/HPCsim.py` writes heuristic output to a fixed path.
@@ -41,10 +41,9 @@ This plan uses Matt Pocock's codebase-design vocabulary. The pipeline stages are
    - Complete generated results exist in `../cluster_results/` and curated paper tables in `../Submmisions/IEEE-ACM/`.
    - No manifest binds the public tables to a code commit, configuration, split metadata, command, and hashes.
 
-6. **Holdout policy is contradictory**
-   - Documentation says winner-only holdout evaluation.
-   - The current Snakefile and `cluster_results/` evaluate all six DRL treatments on holdout.
-   - This must be resolved before publishing holdout outputs.
+6. **Holdout policy was contradictory**
+   - The locked policy now evaluates all six frozen DRL treatments on holdout for final reporting.
+   - Holdout remains excluded from training, tuning, and selection.
 
 ### Important documentation drift
 
@@ -174,22 +173,22 @@ Do not publish:
 
 ### Phase 4 — Build the README and Wiki information architecture
 
-- [ ] Make README the complete first glance: research question, experiment design, key findings, repository layout, requirements, shortest quick start, essential local and SLURM commands, published results, citation, limitations, and links to detailed Wiki guides.
-- [ ] Keep README concise enough to scan, but do not make readers open the Wiki to understand the project, its results, or the basic reproduction path.
-- [ ] Create Wiki pages for detailed setup, local workflow, HPC/SLURM workflow, data preparation, configuration reference, result interpretation, troubleshooting, and contribution procedures.
-- [ ] Add a Wiki home page that follows the same task order as the README and links back to versioned repository files where appropriate.
-- [ ] Keep methodology, split policy, and machine-readable output contracts in version-controlled `docs/`; link to them from the Wiki rather than copying their contents.
-- [ ] Add stable README and repository links to the Wiki. Record the Wiki repository URL and ownership so its pages can be reviewed and backed up.
-- [ ] Correct `just` examples to use positional trace arguments.
-- [ ] Remove the nonexistent SLURM target.
-- [ ] Standardise run counts and holdout wording.
-- [ ] Make Nix the authoritative path; describe pip as a portability path with explicit system prerequisites.
-- [ ] Remove the invalid `conda install --file requirements.txt` command.
-- [ ] State GPU driver and Apptainer `--nv` requirements accurately.
-- [ ] Make `docs/HPCSim.md` the authoritative trace/topology format description; reduce `docs/data.md` to provenance and links.
-- [ ] Replace data placeholders and the placeholder repository URL.
-- [ ] Update the evidence map and include one completed reproducibility record.
-- [ ] Align archive documentation with whether all models or only the winner are retained.
+- [x] Make README the complete first glance: research question, experiment design, key findings, repository layout, requirements, shortest quick start, essential local and SLURM commands, published results, citation, limitations, and links to detailed Wiki guides.
+- [x] Keep README concise enough to scan, but do not make readers open the Wiki to understand the project, its results, or the basic reproduction path.
+- [x] Create Wiki pages for detailed setup, local workflow, HPC/SLURM workflow, data preparation, configuration reference, result interpretation, troubleshooting, and contribution procedures.
+- [x] Add a Wiki home page that follows the same task order as the README and links back to versioned repository files where appropriate.
+- [x] Keep methodology, split policy, and machine-readable output contracts in version-controlled `docs/`; link to them from the Wiki rather than copying their contents.
+- [x] Add stable README and repository links to the Wiki. Record the Wiki repository URL and ownership so its pages can be reviewed and backed up.
+- [x] Correct `just` examples to use positional trace arguments.
+- [x] Remove the nonexistent SLURM target.
+- [x] Standardise run counts and holdout wording.
+- [x] Make Nix the authoritative path; describe pip as a portability path with explicit system prerequisites.
+- [x] Remove the invalid `conda install --file requirements.txt` command.
+- [x] State GPU driver and Apptainer `--nv` requirements accurately.
+- [x] Make `docs/HPCSim.md` the authoritative trace/topology format description; reduce `docs/data.md` to provenance and links.
+- [x] Replace data placeholders and the placeholder repository URL.
+- [x] Update the evidence map and include one completed reproducibility record.
+- [x] Align archive documentation with all final models being retained after selection.
 
 **Exit check:** a new visitor can understand the study and run the shortest supported workflow from README alone; every detailed Wiki procedure is linked, non-duplicated, and tested; every documented command exists and passes a dry run in its stated environment.
 

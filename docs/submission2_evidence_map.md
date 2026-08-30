@@ -1,43 +1,27 @@
-# Submission 2 Evidence Map (Template)
+# Submission 2 Evidence Map
 
-Use this file to map every claim in Submission 2 to concrete project evidence.
+Status: completed against the v1 public evidence release, 2026-08-30.
 
-## 1. Usage
+| Claim | Paper area | Claim | Versioned source | Published evidence | Status |
+|---|---|---|---|---|---|
+| C-001 | Methodology | Six DRL treatments cover PPO/A2C/DQN with and without masking | `docs/methodology_protocol.md`; `config.yaml` | `results/v1/manifest.json` experiment matrix | evidenced |
+| C-002 | Data | Earliest 70% development and latest 30% holdout are time ordered | `docs/data_split_policy.md`; `src/make_split.py` | split IDs in `results/v1/manifest.json` and seed summaries | evidenced |
+| C-003 | Leakage | Holdout cannot feed training or selection | `src/train_agents.py`; `Snakefile`; `docs/data_split_policy.md` | all-six holdout summaries under `results/v1/tables/*/holdout/` | evidenced |
+| C-004 | Workflow | Snakemake automates split → train → eval → aggregate → stats → select → holdout | `Snakefile`; `docs/snakemake_pipeline.md` | tested DAG contracts in `tests/test_pipeline_contracts.py` | evidenced |
+| C-005 | Evaluation | Six treatments × ten seeds are reported per trace and scope | `src/evaluate_agents.py`; `src/aggregate_results.py` | four `results/v1/tables/<trace>/<scope>/seed_summary.csv` files | evidenced |
+| C-006 | Statistics | Friedman, Kendall's W, Nemenyi, Wilcoxon CIs, Page trend, and CD inputs are produced | `src/statistical_test.py`; `docs/methodology_protocol.md` | `results/v1/tables/<trace>/statistics/` | evidenced |
+| C-007 | Selection | Development selection uses configured Pareto metrics and CI tie-breakers | `src/select_best.py`; `config.yaml` | `results/v1/selection/{physical,deeplearn}.json` | evidenced |
+| C-008 | Controls | Heuristics use no-backfill for the primary comparison; random is stochastic | `src/run_baseline.py`; `src/random_control.py`; `config.yaml` | `results/v1/tables/paper/*_vs_{baseline,random}.csv`; `backfill_bands.csv` | evidenced |
+| C-009 | Findings | Physical DRL did not beat masked random; deeplearn leaders did not separate at ten seeds | `results/v1/README.md` | main, rank, random-comparison, and holdout tables in `results/v1/tables/paper/` | evidenced |
+| C-010 | Provenance | Every public artifact is hashed and source-accounted | `scripts/validate_results_release.py`; `docs/result_schema.md` | `results/v1/manifest.json` | evidenced |
 
-- one row per claim;
-- include exact source file path;
-- include generated artefact path when applicable.
+## Mandatory evidence buckets
 
-## 2. Claim Mapping Table
+- protocol and split policy: `docs/methodology_protocol.md`, `docs/data_split_policy.md`;
+- executable workflow and contracts: `Snakefile`, `docs/result_schema.md`, `tests/`;
+- aggregate and holdout evidence: `results/v1/tables/{physical,deeplearn}/`;
+- statistics: `results/v1/tables/*/statistics/`;
+- controls and paper claims: `results/v1/tables/paper/`;
+- immutable provenance: `results/v1/manifest.json` and its validator.
 
-| Claim ID | Paper Section | Claim Summary | Evidence Type | Source Path | Artefact Path | Status |
-|---|---|---|---|---|---|---|
-| C-001 | Methodology | 6 algorithms selected for comparison | protocol | `Project_Github/docs/methodology_protocol.md` | | in_progress |
-| C-002 | Methodology | time-aware holdout policy enforced | policy doc | `docs/data_split_policy.md` | `data/splits/logs/<trace>_r70.json` | in_progress |
-| C-003 | Methods Workflow | local maskable smoke gate completed | run log | `docs/workflow_local.md` | `trained_model/<trace>/<seed>/<algo>/selector/<step>.zip` | in_progress |
-| C-004 | Methods Workflow | pipeline automated with Snakemake | workflow doc | `docs/snakemake_pipeline.md` | | in_progress |
-| C-005 | Evaluation | deterministic eval outputs generated | result files | `src/evaluate_agents.py` | `result/<trace>/eval_runs/runs/*.csv` | pending |
-| C-006 | Statistics | Friedman + Kendall's W + Nemenyi + Wilcoxon CIs + Page trend implemented | analysis output | `src/statistical_test.py` | `result/<trace>/stats/` | pending |
-
-Notes:
-
-- C-002 includes script-level holdout training guard verification (negative test fail-fast on holdout trace).
-- C-003 currently reflects interim maskable gate (A2C mask-on, DQN mask-on/off); full 6-algorithm smoke gate remains pending.
-
-## 3. Required Evidence Buckets
-
-- Methodology protocol
-- Data split policy
-- Local workflow run logs
-- HPC runbook (prepared)
-- Snakemake DAG and config
-- Aggregated metrics
-- Statistical outputs
-- Figures/tables for manuscript
-
-## 4. Review Checklist
-
-- [ ] every major claim has at least one source
-- [ ] file paths are valid and current
-- [ ] all figure/table references resolve
-- [ ] no claim depends on undocumented output
+The release caveats—historical unmasked truncation, duplicate physical timing observations, and unavailable historical statistics commit—must accompany any claim derived from v1.

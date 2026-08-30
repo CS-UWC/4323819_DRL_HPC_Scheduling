@@ -1,62 +1,50 @@
-# Data Split Policy (Template)
+# Time-Aware Data Split Policy
 
-Use this file to formalize split rules and leakage controls.
+Status: locked for the v1 study release
 
-## 1. Policy Statement
+Owner: Justin M. Cheney
 
-- Final holdout is reserved for final reporting only.
-- Tuning/model selection is restricted to development/train data.
-- Optional blocked CV is allowed only within development/train partition.
-- No random shuffle of time-ordered traces.
+Last updated: 2026-08-30
 
-## 2. Data Sources
+## Policy
 
-- Trace files: `data/physical_job.csv`, `data/deeplearn_job.csv` (selected via `--src`)
-- Topology files: `data/topology/physical_topology.txt`, `data/topology/nodes.csv`
-- Split script: `src/make_split.py`, invoked as `python -m src.make_split`
+- Stable-sort each source trace by `Submit`; never random-shuffle trace order.
+- Use the earliest 70% for development, training, comparison, and selection.
+- Reserve the latest 30% for final reporting only.
+- Evaluate all six frozen DRL treatments on holdout across the configured seeds.
+- Never tune, select, early-stop, or revise a treatment from holdout results.
+- Optional blocked cross-validation is allowed only inside development data and was not used for the v1 release.
 
-## 3. Split Definition
+## Inputs and deterministic outputs
 
-- Split basis (timestamp column): `Submit`
-- Development/train proportion: 70% earliest rows after stable sort (`mergesort`)
-- Final holdout proportion: 30% latest rows after stable sort
-- Split ID naming convention: `<source>_r<ratio_percent>_<timestamp>`
+| Source | Total | Development | Holdout | Split ID |
+|---|---:|---:|---:|---|
+| `data/physical_job.csv` | 84,135 | 58,894 | 25,241 | `physical_job_r70` |
+| `data/deeplearn_job.csv` | 68,720 | 48,104 | 20,616 | `deeplearn_job_r70` |
 
-Example:
+`src.make_split` writes:
 
-- `physical_job_r70_20260422T101530`
+```text
+data/splits/<trace>_dev70.tsv
+data/splits/<trace>_holdout30.tsv
+data/splits/logs/<trace>_r70.json
+```
 
-## 4. Optional Blocked CV (Development Only)
+The metadata includes the source path and SHA-256, ratio, sort key, row counts, stable split ID, timestamp, and output paths. The timestamp records when the split was generated; it is not part of `split_id`.
 
-- Enabled: yes/no
-- Number of folds:
-- Fold construction rule:
-- Validation fold rotation strategy:
+## Command
 
-## 5. Leakage Prevention Controls
+```bash
+python -m src.make_split --src physical_job --ratio 0.7 --out-dir data/splits/
+python -m src.make_split --src deeplearn_job --ratio 0.7 --out-dir data/splits/
+```
 
-- Holdout access controls: final holdout is generated as separate `*_holdout30.tsv` artefact and excluded from tuning runs
-- Script-level guardrails: `src/train_agents.py` rejects holdout-like training traces before environment setup
-- Config flags that prevent accidental tuning on holdout: training commands must target `data/splits/*_dev70.tsv`; holdout training is fail-fast by design
+## Leakage controls
 
-Current holdout guard rule in training entrypoint:
+1. Training rules pass only `*_dev70.tsv`.
+2. `src.train_agents` rejects paths matching holdout/test patterns before environment construction.
+3. Development summaries feed `src.select_best`.
+4. Holdout rules run after the treatment definitions and seed matrix are frozen.
+5. Holdout outputs feed final reporting only; no edge returns to training or selection in the DAG.
 
-- reject trace paths that contain `holdout` (case-insensitive), with explicit error.
-
-## 6. Audit Trail Requirements
-
-For each run, record:
-
-- split ID;
-- algorithm and seed;
-- command;
-- commit hash;
-- outputs generated;
-- timestamp.
-
-## 7. Approval and Change Management
-
-- Policy owner:
-- Last updated: 2026-04-22
-- Change log:
-  - 2026-04-22: standardized split artefacts (`*_dev70.tsv`, `*_holdout30.tsv`) and metadata JSON logging under `data/splits/logs/`; documented training holdout guard.
+Any change to the split ratio, sort key, source bytes, or holdout scope creates a new experiment definition and must not overwrite v1 evidence.

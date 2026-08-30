@@ -1,49 +1,57 @@
-# Reproducibility Checklist (Template)
+# Reproducibility Checklist
 
-Use this checklist per experiment batch and per reported result.
+Use this checklist for every experiment batch or published result.
 
-## 1. Environment
+## Required record
 
-- [ ] Nix environment used
-- [ ] flake lock state captured
-- [ ] Python/package versions recorded
+- environment: Nix/flake lock or explicitly labeled portability environment;
+- Git commit, branch/tag, and working-tree state;
+- source trace SHA-256, split ID, sort key, ratio, and row counts;
+- algorithms, masking modes, seeds, timesteps, and hyperparameter source;
+- exact command and UTC timestamp;
+- output paths and schema validation result;
+- development/holdout isolation confirmation;
+- aggregate/statistics/release hash validation;
+- reviewer, date, and unresolved limitations.
 
-## 2. Code Provenance
+## Completed record: v1 release publication gate
 
-- [ ] git commit hash recorded
-- [ ] branch/tag recorded
-- [ ] uncommitted changes status noted
+| Field | Recorded value |
+|---|---|
+| Date | 2026-08-30 |
+| Repository commit | `6f8755bc9e8d9e1260e2d576b39be5ce45adf3b9` |
+| Branch / state | `main`; clean after commit |
+| Experiment source commit | `fae1c739dd8e1743cd61d9cf909b23fa6e7d32a1` |
+| Release base commit | `fa0e299b58fa5ce297bb52a439d82658330600df` |
+| `flake.lock` SHA-256 | `b1f0527ee71e806fe82194d9f5233bc0acd91508d1420cd4811c577b8e615e17` |
+| Production config snapshot | `results/v1/config/source_config.yaml`, SHA-256 `d786ca84879b2812a29441cd89203cc1df678a0f329d8a41d2cc1fed3dfcf2fe` |
+| Physical source | 84,135 rows; SHA-256 `d3855a96f10efc33e163241aec510b65c10d13edf6c64861871dde420b20bdf8`; split `physical_job_r70` |
+| Deeplearn source | 68,720 rows; SHA-256 `1f3ec6d7f4d34c10fbd07cd826e0df2fb55d94828ec62198bff3d2c788d7a936`; split `deeplearn_job_r70` |
+| Matrix | six DRL treatments × ten fixed seeds × two traces; development and holdout summaries |
+| Holdout rule | latest 30%; all six treatments reported; no tuning or selection |
+| Release | `results/v1/`; released `2026-08-30T20:52:13Z` |
+| Manifest SHA-256 | `be21e3ab945ff87bdf86ad359b81fa0c73b4cc5be92268daae0f6b5d8a484b4c` |
 
-## 3. Data Provenance
+Commands and outcomes:
 
-- [ ] trace files identified
-- [ ] split policy version recorded
-- [ ] split ID recorded
-- [ ] holdout isolation confirmed
+```bash
+python -m unittest discover -s tests -v
+# 8 tests passed
 
-## 4. Run Configuration
+python scripts/validate_results_release.py
+# Validated results/v1
 
-- [ ] algorithm recorded
-- [ ] seed recorded
-- [ ] timesteps recorded
-- [ ] hyperparameter source recorded
-- [ ] command string recorded
+snakemake --configfile config.smoke.yaml --config trace_name=physical_job --dry-run --quiet
+snakemake --configfile config.smoke.yaml --config trace_name=deeplearn_job --dry-run --quiet
+snakemake --configfile config.yaml --config trace_name=physical_job --dry-run --quiet
+snakemake --configfile config.yaml --config trace_name=deeplearn_job --dry-run --quiet
+# all four DAG dry-runs passed
+```
 
-## 5. Output Integrity
+Validation used Python 3.12 and Snakemake 9.3.4 from existing Nix-store packages. A fresh `nix develop` attempted to build the CUDA closure but did not finish within the 900-second validation window; therefore this record attests the release contracts, tests, and DAGs, not a clean-clone end-to-end retraining.
 
-- [ ] expected files generated
-- [ ] schema validation passed
-- [ ] aggregation reproducible
-- [ ] statistical script reproducible
+Reviewer outcome: parallel standards/spec review **PASS**. Known residual caveats are recorded in `results/v1/README.md` and `results/v1/manifest.json`.
 
-## 6. Reporting Traceability
+## Completed record: Phase 4 documentation gate
 
-- [ ] table rows map to source files
-- [ ] figure sources identified
-- [ ] claim-to-evidence mapping updated
-
-## 7. Sign-Off
-
-- Reviewer:
-- Date:
-- Notes:
+On 2026-08-30, the Phase 4 tree passed 12 unit/contract checks, all four smoke/production × physical/deeplearn DAG dry-runs, `nix flake check --no-build`, shell syntax checks, local Markdown path/fragment checks, documented-`just` target checks, release validation, Python compilation, and `git diff --check`. The GitHub Wiki source is backed up under `wiki/`; its separate remote remains uninitialized and requires the repository owner to create the first Wiki page before publication.

@@ -43,8 +43,7 @@ batch_size: 64                      # smoke: small buffer (100 steps × 1 env), 
 n_epochs: 3                          # smoke: few epochs, just exercise the PPO update path
 learning_rate: "3e-4"                # smoke: constant LR; schedule path not worth exercising at 200 steps
 
-# --- Topology ----------------------------------------------------------------
-topology_file: "physical_topology.txt"
+# --- Topology (selected from trace_name by Snakefile) ------------------------
 node_file: "nodes.csv"
 
 # --- Statistical test parameters (REQUIRED: alpha) ---------------------------

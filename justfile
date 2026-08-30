@@ -20,7 +20,7 @@ cpu_count := if os() == "linux" {
 }
 
 # Where `archive_results` copies analysis outputs + all algorithms' final models
-# off scratch into safe (home) storage. Override: just archive_results deeplearn ARCHIVE=/path
+# off scratch into safe (home) storage. Override: ARCHIVE=/path just archive_results deeplearn
 ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
 
 # =============================================================================
@@ -150,7 +150,7 @@ run_full_slurm trace="physical":
 
 # One-time per clone (re-run after clean_all, which removes the dirs): redirect
 # the bulky output trees to /scratch so runs write there, not $HOME. Idempotent.
-# See docs/workflow_hpc.md §3. Final models are copied back with archive_results.
+# See wiki/HPC-SLURM-Workflow.md. Final models are copied back with archive_results.
 setup_scratch:
     ./src/setup_scratch.sh
 
