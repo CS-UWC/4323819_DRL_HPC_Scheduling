@@ -16,9 +16,8 @@ src/random_control.py for that argument in full. Being stochastic it requires
 summary row carries a standard deviation.
 
 Output contract (kept separate from, but schema-compatible with, the DRL
-eval/aggregate pipeline -- see TODO.md Phase 3 "Baselines: separate stats,
-combined visuals" and methodology_protocol.md's documented decision that
-baselines are reported descriptively and excluded from the DRL-only
+eval/aggregate pipeline -- see docs/methodology_protocol.md's documented
+decision that baselines are reported descriptively and excluded from the DRL-only
 Friedman/Nemenyi/Wilcoxon/Page-trend hypothesis tests):
 
   result/{partition}/{stem}_metrics.csv     : one eval_wide-compatible row
@@ -84,16 +83,7 @@ def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
         random_job=False,
     )
 
-    env.run()
-    # HPCsim.run() always writes to a fixed "result/{algo}+{allocator}.csv"
-    # regardless of the caller's result_dir -- move it into place immediately
-    # after the run completes (not deferred), since two concurrent baseline
-    # runs for the SAME algorithm on DIFFERENT traces would otherwise race
-    # on this fixed path if ever parallelised. (See HPCsim.run(): the source
-    # path is hardcoded inside HPCsim itself, not something run_baseline.py
-    # can pass in -- this rename is the only mitigation available here.)
-    fixed_source_path = Path(f"result/{algorithm}+{allocator}.csv")
-    fixed_source_path.replace(out_csv.with_suffix(".raw.csv"))
+    env.run(output_path=out_csv.with_suffix(".raw.csv"))
 
     max_w, avg_w = env.evaluator.waiting_time()
     max_s, avg_s = env.evaluator.bounded_slowdown()
@@ -122,8 +112,12 @@ def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
         "node_file": str(row["node_file"]),
         "episode_reward": 0.0,
         "decision_count": 0,
+        "completed_job_count": len(env.evaluator.completed_job),
         "decision_latency_mean_ms": 0.0,
         "eval_wall_s": round(elapsed, 2),
+        "evaluation_complete": True,
+        "requested_max_steps": None,
+        "termination_reason": "completed",
         "max_waiting": float(max_w),
         "avg_waiting": float(avg_w),
         "max_slowdown": float(max_s),

@@ -76,12 +76,12 @@ flake8 src/ --max-line-length=88
 
 Before submitting a pull request:
 
-1. **Run existing tests:**
+1. **Run existing contract tests:**
     ```bash
-    python -m pytest src/test_scheduler.py
+    python -m unittest discover -s tests -v
     ```
 
-2. **Add tests for new features** alongside the code in `src/` (e.g. `src/test_your_feature.py`).
+2. **Add behavioral tests for new features** under `tests/`.
 
 3. **Smoke test your changes** end-to-end:
     ```bash

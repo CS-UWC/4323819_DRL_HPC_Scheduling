@@ -171,6 +171,11 @@ def rollout_random(
             print(msg, flush=True)
 
     eval_wall_s = time.perf_counter() - t_start
+    capped = max_steps is not None and n_steps >= max_steps and not (done or truncated)
+    evaluation_complete = bool(done and not truncated)
+    termination_reason = "completed" if evaluation_complete else (
+        "step_cap" if capped else "environment_truncated"
+    )
 
     # Same guarded accessors evaluate_agents uses: these Evaluator methods
     # return None (not a tuple) when no job has completed, which would other-
@@ -188,15 +193,11 @@ def rollout_random(
         env.utilization, (0.0, 0.0), "utilization"
     )
 
-    if truncated:
-        # AllocationCommit's hang guard fired, or max_steps cut the pass short.
-        # The metrics below are then computed over a partial trace and are NOT
-        # comparable to a full-trace DRL row, so say so in the log rather than
-        # letting a short row pass silently into the summary.
+    if not evaluation_complete:
         print(
-            f"[WARN] {spec.run_id} truncated after {n_steps} steps — "
-            f"metrics cover a partial trace and are not comparable to the "
-            f"full-trace treatments.",
+            f"[WARN] {spec.run_id} stopped after {n_steps} steps "
+            f"({termination_reason}) — metrics cover a partial trace and are "
+            "not comparable to full-trace treatments.",
             flush=True,
         )
 
@@ -215,10 +216,14 @@ def rollout_random(
         "node_file": spec.node_file,
         "episode_reward": episode_reward,
         "decision_count": n_steps,
+        "completed_job_count": len(env.evaluator.completed_job),
         "decision_latency_mean_ms": (
             float(np.mean(decision_latencies) * 1000.0) if decision_latencies else 0.0
         ),
         "eval_wall_s": round(eval_wall_s, 2),
+        "evaluation_complete": evaluation_complete,
+        "requested_max_steps": max_steps,
+        "termination_reason": termination_reason,
         "max_waiting": float(max_w),
         "avg_waiting": float(avg_w),
         "max_slowdown": float(max_s),

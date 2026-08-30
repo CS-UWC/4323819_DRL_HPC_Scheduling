@@ -59,6 +59,7 @@ class EvalResult:
     node_file: str
     episode_reward: float
     decision_count: int
+    completed_job_count: int
     decision_latency_mean_ms: float
     eval_wall_s: float
     max_waiting: float
@@ -68,6 +69,9 @@ class EvalResult:
     avg_turnaround: float
     cpu_utilization: float
     gpu_utilization: float
+    evaluation_complete: bool
+    requested_max_steps: int | None
+    termination_reason: str
     timestamp_utc: str
 
 
@@ -86,7 +90,8 @@ MANIFEST_REQUIRED = [
 
 EVAL_REQUIRED = [
     "run_id",  "treatment_id", "algorithm", "use_masking", "window_size", "tail_size","seed", "split_id",
-    "episode_reward", "decision_count",
+    "episode_reward", "decision_count", "completed_job_count", "evaluation_complete",
+    "requested_max_steps", "termination_reason",
     "max_waiting", "avg_waiting",
     "max_slowdown", "avg_slowdown",
     "avg_turnaround",
@@ -330,6 +335,8 @@ def load_eval_summary(path: Path) -> pd.DataFrame:
         context="eval_summary",
     )
     df["use_masking"] = df["use_masking"].apply(parse_bool)
+    if "evaluation_complete" in df.columns:
+        df["evaluation_complete"] = df["evaluation_complete"].apply(parse_bool)
     return df
 
 
@@ -575,14 +582,14 @@ def load_split_metadata(
     if not log_files:
         raise FileNotFoundError(f"No split log files found in {splits_log_dir}")
     
-    # If split_id provided, filter to matching file
     if split_id:
-        matching_files = [f for f in log_files if split_id in f.name]
-        if not matching_files:
+        exact_file = Path(splits_log_dir) / f"{split_id}.json"
+        if not exact_file.exists():
             raise FileNotFoundError(
-                f"No split log matching '{split_id}' in {splits_log_dir}. Available: {[f.name for f in log_files]}"
+                f"No split log matching '{split_id}' in {splits_log_dir}. "
+                f"Available: {[f.name for f in log_files]}"
             )
-        log_files = matching_files
+        log_files = [exact_file]
     
     if len(log_files) > 1:
         raise ValueError(
@@ -607,11 +614,61 @@ def write_manifest_entry(
 ) -> str:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = manifest_path.with_suffix(".lock")
+    entry_values = {
+        "treatment_id": treatment_id,
+        "algorithm": algorithm,
+        "use_masking": use_masking,
+        "seed": seed,
+        "window_size": window_size,
+        "tail_size": tail_size,
+        "split_id": split_id,
+        "model_path": model_path,
+        "trace_file": trace_file,
+        "topology_file": topology_file,
+        "node_file": node_file,
+    }
+    canonical_keys = ["split_id", "treatment_id", "seed"]
+
+    def values_match(left: Any, right: Any) -> bool:
+        if pd.isna(left) and pd.isna(right):
+            return True
+        return str(left) == str(right)
+
     with open(lock_path, "w") as lock_file:
         try:
             fcntl.flock(lock_file, fcntl.LOCK_EX)
             if manifest_path.exists():
                 df = pd.read_csv(manifest_path)
+                validate_required_columns(df, MANIFEST_REQUIRED, context="run_manifest")
+                canonical = pd.Series(True, index=df.index)
+                for key in canonical_keys:
+                    expected = entry_values[key]
+                    if pd.isna(expected):
+                        canonical &= df[key].isna()
+                    else:
+                        canonical &= df[key].map(lambda value: values_match(value, expected))
+                matches = df.loc[canonical]
+                if not matches.empty:
+                    conflicts = matches.loc[
+                        ~matches.apply(
+                            lambda row: all(
+                                values_match(row[column], expected)
+                                for column, expected in entry_values.items()
+                            ),
+                            axis=1,
+                        )
+                    ]
+                    if not conflicts.empty:
+                        raise ValueError(
+                            "Conflicting manifest rows for canonical key "
+                            f"{tuple(entry_values[key] for key in canonical_keys)}"
+                        )
+                    run_id = str(matches.iloc[0]["run_id"])
+                    if len(matches) > 1:
+                        df = df.drop(index=matches.index[1:])
+                        df.to_csv(manifest_path, index=False)
+                    print(f"[EXISTS] {run_id}")
+                    return run_id
                 next_index = len(df[df["algorithm"] == algorithm]) + 1
                 file_exists = True
             else:
@@ -619,24 +676,13 @@ def write_manifest_entry(
                 file_exists = False
 
             run_id = f"{algorithm}_{next_index:03d}"
-            entry = pd.DataFrame(
-                [[
-                    run_id,
-                    treatment_id,
-                    algorithm,
-                    use_masking,
-                    seed,
-                    window_size,
-                    tail_size,
-                    split_id,
-                    model_path,
-                    trace_file,
-                    topology_file,
-                    node_file,
-                ]],
-                columns=MANIFEST_REQUIRED,
+            entry = pd.DataFrame([[run_id, *entry_values.values()]], columns=MANIFEST_REQUIRED)
+            entry.to_csv(
+                manifest_path,
+                mode="a" if file_exists else "w",
+                index=False,
+                header=not file_exists,
             )
-            entry.to_csv(manifest_path, mode="a" if file_exists else "w", index=False, header=not file_exists)
             print(f"[LOGGED] {run_id}")
             return run_id
         finally:

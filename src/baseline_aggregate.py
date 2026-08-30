@@ -19,8 +19,8 @@ Output schema matches the *_mean column naming convention of
 algorithm_summary.csv (e.g. "avg_waiting_mean_mean") purely so
 visualise.py's existing column-selection code (write_comparison_csv,
 draw_bar_graphs, etc.) can read baseline_summary.csv with zero changes if a
-combined-visual comparison is wanted -- per TODO.md Phase 3, "keep baseline
-stats separate but allow combined visual comparison."
+combined-visual comparison is wanted, while the statistical protocol in
+docs/methodology_protocol.md keeps baseline statistics separate.
 
 Usage:
     python src/baseline_aggregate.py \\
@@ -53,6 +53,10 @@ def parse_args() -> argparse.Namespace:
         "--strict", action=argparse.BooleanOptionalAction, default=True,
         help="Fail if any discovered file does not match the eval_wide schema.",
     )
+    parser.add_argument(
+        "--allow-partial", action="store_true",
+        help="Allow capped random-control rows for smoke-only aggregation.",
+    )
     return parser.parse_args()
 
 
@@ -60,10 +64,13 @@ def discover_baseline_metrics(result_dir: Path) -> list[Path]:
     return sorted(result_dir.glob("*_metrics.csv"))
 
 
-def load_and_validate(path: Path, strict: bool) -> pd.DataFrame | None:
+def load_and_validate(path: Path, strict: bool, allow_partial: bool) -> pd.DataFrame | None:
     df = pd.read_csv(path)
     try:
         validate_required_columns(df, EVAL_REQUIRED, context=f"baseline[{path.name}]")
+        complete = str(df.iloc[0]["evaluation_complete"]).lower() == "true"
+        if not allow_partial and not complete:
+            raise ValueError(f"baseline[{path.name}] is incomplete; use --allow-partial only for smoke")
         validate_finite_numeric(df, CORE_METRICS, context=f"baseline[{path.name}]")
     except ValueError as e:
         if strict:
@@ -119,7 +126,7 @@ def main() -> None:
 
     frames = []
     for path in metric_files:
-        df = load_and_validate(path, strict=args.strict)
+        df = load_and_validate(path, strict=args.strict, allow_partial=args.allow_partial)
         if df is not None:
             frames.append(df)
 

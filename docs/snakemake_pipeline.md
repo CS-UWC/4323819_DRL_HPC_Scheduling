@@ -23,13 +23,13 @@ make_split
    baseline ─> baseline_aggregate ─> baseline_compare ──────────────────────────────────┘
 ```
 
-`holdout_eval` runs only for the winning algorithm (read from
-`best_algorithm.json`) on the reserved holdout split — the one time the holdout
-is used. `rule all` requires `visualise`, `baseline_compare`, and
-`holdout_aggregate`.
+`holdout_eval` runs all six DRL treatments across the configured seeds on the
+reserved holdout split for final reporting. The holdout remains excluded from
+training, tuning, and selection. `rule all` requires `visualise`,
+`baseline_compare`, and `holdout_aggregate`.
 
 `train_agent` and `eval_run` fan out over the cross product of `seeds` ×
-`algorithms` (production: 5 × 6 = 30 of each). The baseline branch
+`algorithms` (production: 10 × 6 = 60 of each). The baseline branch
 (`run_baseline`) is independent of the DRL branch and only needs the split.
 
 ## 3. Rule contracts
@@ -42,10 +42,10 @@ is used. `rule all` requires `visualise`, `baseline_compare`, and
 | `aggregate` | `src.aggregate_results` | eval run CSVs | `result/<trace>/aggregate/{eval_wide,seed_summary,algorithm_summary}.csv`, `aggregate_metadata.json` |
 | `stats` | `src.statistical_test` | `seed_summary.csv` | `result/<trace>/stats/{stats_summary.json,pairwise_nemenyi.csv,confidence_intervals.csv,page_trend.csv,cd_diagram_input.csv,stats_meta.json}` |
 | `select_best` | `src.select_best` | stats + aggregate | `result/<trace>/best/best_algorithm.json` |
-| `holdout_eval` | `src.evaluate_agents` | best + holdout split | `result/<trace>/holdout/runs/*.csv` (winner only, via `--filter-treatment` + `--eval-trace`) |
+| `holdout_eval` | `src.evaluate_agents` | all trained treatments + holdout split | `result/<trace>/holdout/runs/*.csv` (all six treatments × configured seeds, via `--eval-trace`) |
 | `holdout_aggregate` | `src.aggregate_results` | holdout runs | `result/<trace>/holdout/holdout_summary.csv` |
-| `baseline` | `src.run_baseline` | dev split | `result/<trace>/baseline/baseline_metadata.json`, manifest in `logs/baseline_run_log.csv` |
-| `baseline_aggregate` | `src.baseline_aggregate` | baseline metadata | `result/<trace>/baseline/{baseline_summary,baseline_eval_wide}.csv` |
+| `baseline` | `src.run_baseline` | dev split | `result/<trace>/baseline/.heuristics_complete`, manifest in `logs/baseline_run_log.csv` |
+| `baseline_aggregate` | `src.baseline_aggregate` | heuristic completion marker + baseline rows | `result/<trace>/baseline/{baseline_summary,baseline_eval_wide}.csv` |
 | `baseline_compare` | `src.baseline_compare` | best + summaries | `result/<trace>/baseline/{baseline_comparison,descriptive_comparison_table}.csv` |
 | `visualise` | `src.visualise` | best + stats + aggregate | plots under `plots/`, `.visualise_complete` marker |
 
@@ -56,7 +56,8 @@ Workflow parameters live in `config.yaml` (production) / `config.smoke.yaml`
 `allocators`, `save_interval`, `total_saving` (total steps = `save_interval ×
 total_saving`), `window_size`, `tail_size`, `buffer_size`, `n_envs`,
 `batch_size`, `n_epochs`, `learning_rate`, `alpha`, `eval_deterministic`,
-`eval_max_steps`, `pareto_metrics`, `pareto_tiebreakers`, `visualisation`.
+`eval_max_steps`, `allow_partial_evaluation` (smoke only), `pareto_metrics`,
+`pareto_tiebreakers`, `visualisation`.
 
 SLURM runner settings (executor, jobs, container, resources) live **only** in
 `profiles/slurm/config.yaml` — the config files carry no runner keys.

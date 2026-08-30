@@ -3,6 +3,8 @@
 
 **Justin M. Cheney** · University of the Western Cape · 2026
 
+This repository is the authoritative implementation and reproducibility source for the study.
+
 Over the past three decades, supercomputers and their workloads have become increasingly complex. Scheduling systems have evolved from traditional heuristics to Deep Reinforcement Learning (DRL) approaches that adapt policies to specific workloads. Though several studies develop DRL schedulers, no clear consensus exists on the optimal algorithm family. This project trains and evaluates representative algorithms from three DRL families — DQN, PPO, and A2C — with and without action masking, on real heterogeneous Slurm traces (~84k jobs). Statistical testing (Friedman, Nemenyi, Wilcoxon-based confidence intervals) determines whether significant performance differences exist across five industry-standard metrics.
 
 ---
@@ -14,8 +16,7 @@ Only one of the following is needed to get started — the rest of the environme
 | Method | Requirement |
 |--------|-------------|
 | **Nix** (recommended) | [Nix](https://nixos.org/download/) with flakes enabled |
-| **Conda** | [Conda](https://docs.conda.io/en/latest/miniconda.html) or Mamba |
-| **pip** | Python ≥ 3.11 |
+| **pip** (portability path) | Python ≥ 3.11 plus the system tools documented in [`docs/setup.md`](docs/setup.md) |
 
 ---
 
@@ -38,17 +39,15 @@ nix develop
 
 All subsequent `just` and `python -m src.*` commands should be run inside `nix develop`.
 
-### Conda / pip
+### pip portability path
 
-An unpinned `requirements.txt` derived from `flake.nix` is provided for portability:
+An unpinned `requirements.txt` derived from `flake.nix` is provided for environments where Nix is unavailable:
 
 ```bash
-# pip
-pip install -r requirements.txt
-
-# Conda
-conda install --file requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+See [`docs/setup.md`](docs/setup.md) for the additional system tools required by the workflow.
 
 > Note: GPU support (CUDA) requires a compatible PyTorch installation for your platform. Under Nix, CUDA is handled automatically by the flake.
 
@@ -83,7 +82,7 @@ Run `just help` to see all available targets.
 
 ## Results
 
-> Results will be released upon completion of the full experimental sweep (60 training runs × 2 traces). Check back here for updated figures, summary tables, and the winning algorithm's holdout evaluation.
+The full experiment is complete: six DRL treatments were evaluated with ten seeds on each of two traces. Development data was used for selection; all six treatments were then evaluated on the isolated time-ordered holdout for final reporting. A curated, provenance-checked results bundle will be added under `results/v1/` in the results-publication phase.
 
 ---
 

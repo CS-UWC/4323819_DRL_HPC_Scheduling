@@ -110,8 +110,8 @@ run_baseline trace="physical":
     #!/usr/bin/env bash
     set -euo pipefail
     t="{{trace}}"; t="${t%_job}_job"
-    echo "Running baseline scheduler (FCFS + best_fit) on ${t}..."
-    snakemake --configfile config.yaml --config trace_name="${t}" --cores {{cpu_count}} result/"${t}"/baseline/baseline_metadata.json
+    echo "Running configured baseline schedulers on ${t}..."
+    snakemake --configfile config.yaml --config trace_name="${t}" --cores {{cpu_count}} result/"${t}"/baseline/.heuristics_complete
     echo "✓ Baseline complete. Outputs in result/${t}/baseline/"
 
 # =============================================================================

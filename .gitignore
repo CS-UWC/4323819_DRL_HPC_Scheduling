@@ -16,9 +16,10 @@ TODO/
 cur_prog.md
 visualise_instructions.md
 
-# Python / Nix
+# Python / Nix / Snakemake
 __pycache__/
 .direnv/
+.snakemake/
 
 # Agent worktrees
 .claude/*

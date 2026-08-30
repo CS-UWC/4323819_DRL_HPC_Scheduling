@@ -15,8 +15,7 @@ scipy.stats.wilcoxon with no second argument, which tests whether that
 difference is symmetric around zero.
 
 This deliberately does NOT feed into Friedman/Nemenyi/CD-diagram machinery --
-per methodology_protocol.md and TODO.md's documented decision, baselines are
-descriptive and excluded from the DRL-only hypothesis-testing matrix. This
+per docs/methodology_protocol.md, baselines are descriptive and excluded from the DRL-only hypothesis-testing matrix. This
 script produces a separate, small comparison artefact for the
 results/discussion section, not a replacement for or addition to
 stats_summary.json.

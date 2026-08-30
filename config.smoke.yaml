@@ -52,6 +52,7 @@ alpha: 0.05
 # --- Evaluation ----------------------------------------------------------
 eval_deterministic: true
 eval_max_steps: 5                   # smoke: cap episode length so eval finishes fast
+allow_partial_evaluation: true      # smoke only: permit capped rows through aggregation
 
 # --- Pareto Select (REQUIRED keys: pareto_metrics, pareto_tiebreakers) -------
 pareto_metrics:

@@ -7,8 +7,8 @@ Purpose:
     deterministic-baseline lane that is aggregated and statistically
     compared against the best DRL algorithm without ever entering the
     DRL-only Friedman/Nemenyi/Wilcoxon-CI/Page-trend test matrix (see
-    methodology_protocol.md and TODO.md Phase 3: baselines are descriptive,
-    not part of the repeated-measures hypothesis tests, by design).
+    docs/methodology_protocol.md: baselines are descriptive, not part of the
+    repeated-measures hypothesis tests, by design).
 
 DAG Flow:
     make_split (idempotent)
@@ -118,6 +118,7 @@ TOPOLOGY_FILE = TRACE_TO_TOPOLOGY[TRACE_NAME]
 NODE_FILE = config["node_file"]
 ALPHA = config["alpha"]
 EVAL_MAX_STEPS = config.get("eval_max_steps", None)
+ALLOW_PARTIAL_EVALUATION = config.get("allow_partial_evaluation", False)
 EVAL_DETERMINISTIC = config.get("eval_deterministic", True)
 BASELINE_ONLY = config.get("baseline_only", False)
 # N27 uniform-random-over-valid-actions control. Reuses SEEDS: the control is
@@ -138,6 +139,7 @@ SPLIT_META = f"data/splits/logs/{TRACE_NAME}_r70.json"
 
 TRAD_ALGORITHMS_STR = " ".join(TRAD_ALGORITHMS)
 EVAL_MAX_STEPS_FLAG = f"--max-steps {EVAL_MAX_STEPS}" if EVAL_MAX_STEPS else ""
+AGGREGATE_PARTIAL_FLAG = "--allow-partial" if ALLOW_PARTIAL_EVALUATION else ""
 
 PARETO_METRICS = config["pareto_metrics"]
 PARETO_METRICS_STR = " ".join(PARETO_METRICS)
@@ -368,6 +370,7 @@ rule aggregate:
             --eval-root {params.eval_root} \
             --output-dir {params.output_dir} \
             --filter-split {params.filter_split} \
+            {AGGREGATE_PARTIAL_FLAG} \
             >> {log} 2>&1
         """
 
@@ -409,7 +412,6 @@ rule stats:
 
 rule select_best:
     input:
-        nemenyi=f"result/{TRACE_NAME}/stats/pairwise_nemenyi.csv",
         confidence_intervals=f"result/{TRACE_NAME}/stats/confidence_intervals.csv",
         page_trend=f"result/{TRACE_NAME}/stats/page_trend.csv",
         seed_summary=f"result/{TRACE_NAME}/aggregate/seed_summary.csv",
@@ -423,19 +425,20 @@ rule select_best:
     shell:
         """
         python -m src.select_best \
-            --nemenyi {input.nemenyi} \
             --seed-summary {input.seed_summary} \
             --ci {input.confidence_intervals} \
             --page-trend {input.page_trend} \
+            --pareto-metrics {PARETO_METRICS_STR} \
+            --tie-breakers {PARETO_TIEBREAKERS_STR} \
             --output-dir result/{params.trace}/best \
             --alpha {params.alpha} \
             >> {log} 2>&1
         """
 
 # =============================================================================
-# RULE holdout_eval — evaluate the winning algorithm on the reserved holdout
-# split (the one time the holdout is used; the winner is read from
-# best_algorithm.json at runtime and its models come from the run manifest).
+# RULE holdout_eval — evaluate all six DRL treatments on the reserved holdout
+# split for final reporting. The holdout is not used for training, tuning, or
+# selection; select_best remains an ordering dependency for the final DAG.
 # =============================================================================
 
 rule holdout_eval:
@@ -498,8 +501,8 @@ rule holdout_eval:
         """
 
 # =============================================================================
-# RULE holdout_aggregate — summarise the winner's holdout runs across seeds
-# (reuses aggregate_results; strict=off skips the non-winner manifest rows).
+# RULE holdout_aggregate — summarise all six treatments' holdout runs across
+# seeds (reuses aggregate_results; strict=off skips non-holdout manifest rows).
 # =============================================================================
 
 rule holdout_aggregate:
@@ -536,6 +539,7 @@ rule holdout_aggregate:
             --output-dir {params.output_dir} \
             --filter-split {params.filter_split} \
             --no-strict \
+            {AGGREGATE_PARTIAL_FLAG} \
             >> {log} 2>&1
         cp {params.output_dir}/algorithm_summary.csv {output.holdout_summary}
         """
@@ -549,7 +553,7 @@ rule baseline:
         dev_split=DEV_SPLIT,
         split_meta=SPLIT_META,
     output:
-        baseline_meta=f"result/{TRACE_NAME}/baseline/baseline_metadata.json",
+        marker=touch(f"result/{TRACE_NAME}/baseline/.heuristics_complete"),
     log: f"logs/snakemake/{TRACE_NAME}/baseline.log"
     params:
         output_dir=f"result/{TRACE_NAME}/baseline",
@@ -571,7 +575,7 @@ rule baseline:
               >> {log} 2>&1 &
         done
         wait
-        touch {output.baseline_meta}
+        touch {output.marker}
         """
 
 # =============================================================================
@@ -644,7 +648,7 @@ rule baseline_random:
 
 rule baseline_aggregate:
     input:
-        baseline_meta=f"result/{TRACE_NAME}/baseline/baseline_metadata.json",
+        baseline_marker=f"result/{TRACE_NAME}/baseline/.heuristics_complete",
         random_markers=(
             expand(
                 f"result/{TRACE_NAME}/baseline/.random_seed_{{seed}}_complete",
@@ -663,6 +667,7 @@ rule baseline_aggregate:
         python -m src.baseline_aggregate \
             --result-dir {params.result_dir} \
             --output {output.baseline_summary} \
+            {AGGREGATE_PARTIAL_FLAG} \
             >> {log} 2>&1
         """
 
@@ -788,6 +793,7 @@ rule baseline_holdout_aggregate:
         python -m src.baseline_aggregate \
             --result-dir {params.result_dir} \
             --output {output.baseline_summary} \
+            {AGGREGATE_PARTIAL_FLAG} \
             >> {log} 2>&1
         """
 

@@ -75,6 +75,11 @@ def parse_args() -> argparse.Namespace:
         "deeplearn_job_r70). The manifest is shared across traces; this keeps "
         "foreign-trace run_ids out of the aggregate.",
     )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Allow capped or truncated evaluations. Only smoke workflows should use this.",
+    )
     return parser.parse_args()
 
 
@@ -201,6 +206,7 @@ def main() -> None:
 
     eval_frames: list[pd.DataFrame] = []
     failures: list[str] = []
+    partial_failures: list[str] = []
 
     required_cols = list(dict.fromkeys(EVAL_REQUIRED + CORE_METRICS))
 
@@ -208,6 +214,14 @@ def main() -> None:
         try:
             df = load_eval_summary(csv_path)
             validate_required_columns(df, required_cols, context=f"eval[{run_id}]")
+            if not args.allow_partial and not bool(df.iloc[0]["evaluation_complete"]):
+                reason = df.iloc[0]["termination_reason"]
+                message = (
+                    f"eval[{run_id}] is incomplete ({reason}); rerun uncapped or use "
+                    "--allow-partial for smoke-only aggregation"
+                )
+                partial_failures.append(message)
+                raise ValueError(message)
             validate_finite_numeric(df, CORE_METRICS, context=f"eval[{run_id}]")
             manifest_row = manifest_df[manifest_df["run_id"] == run_id].iloc[0]
             df = df.assign(**{col: manifest_row[col] for col in CANON_KEYS})
@@ -216,7 +230,7 @@ def main() -> None:
             failures.append(f"{run_id}: {e}")
             print(f"[FAIL] {run_id} :: {e}")
 
-    if failures and args.strict:
+    if failures and (args.strict or partial_failures):
         print(f"\n{len(failures)} run(s) failed validation. Exiting.")
         sys.exit(1)
 

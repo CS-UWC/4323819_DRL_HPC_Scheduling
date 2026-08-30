@@ -105,9 +105,9 @@ checkpoints of the winning algorithm (matched by `treatment_id` in
 
 ## 7. Output validation
 
-- [ ] all 30 training + 30 eval jobs completed (`squeue` empty, markers present)
+- [ ] all 60 training + 60 development-evaluation jobs completed (`squeue` empty, markers present)
 - [ ] `result/<trace>/{aggregate,stats,best}` populated
-- [ ] `result/<trace>/holdout/holdout_summary.csv` present (winner re-evaluated on holdout)
+- [ ] `result/<trace>/holdout/holdout_summary.csv` present (all six DRL treatments evaluated on holdout for final reporting)
 - [ ] baseline comparison present (if run)
 - [ ] figures generated under `plots/`
 - [ ] `git_commit` non-null in run/aggregate/stats metadata

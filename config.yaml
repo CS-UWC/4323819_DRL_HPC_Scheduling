@@ -79,6 +79,7 @@ alpha: 0.05
 # --- Evaluation --------------------------------------------------------------
 eval_deterministic: true
 eval_max_steps: null               # null = full episode; integer = early stop
+allow_partial_evaluation: false    # never publish capped production evaluations
 
 # --- Pareto Select -----------------------------------------------------------
 pareto_metrics:

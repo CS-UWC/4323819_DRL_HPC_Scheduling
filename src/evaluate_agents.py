@@ -271,6 +271,11 @@ def evaluate_one_run(
             print(msg, flush=True)
 
     eval_wall_s = time.perf_counter() - t_start
+    capped = max_steps is not None and n_steps >= max_steps and not (done or truncated)
+    evaluation_complete = bool(done and not truncated)
+    termination_reason = "completed" if evaluation_complete else (
+        "step_cap" if capped else "environment_truncated"
+    )
     max_w, avg_w = safe_metric_access(
         env.evaluator.waiting_time, (0.0, 0.0), "waiting_time"
     )
@@ -297,8 +302,12 @@ def evaluate_one_run(
         node_file=spec.node_file,
         episode_reward=episode_reward,
         decision_count=n_steps,
+        completed_job_count=len(env.evaluator.completed_job),
         decision_latency_mean_ms=float(np.mean(decision_latencies) * 1000.0) if decision_latencies else 0.0,
         eval_wall_s=eval_wall_s,
+        evaluation_complete=evaluation_complete,
+        requested_max_steps=max_steps,
+        termination_reason=termination_reason,
         max_waiting=float(max_w),
         avg_waiting=float(avg_w),
         max_slowdown=float(max_s),
@@ -321,19 +330,6 @@ def write_eval_outputs(output_dir: Path, result: EvalResult, metadata: dict[str,
     write_dict_outputs(result.__dict__, f"{run_id}_metrics", output_dir, 
                        as_json=True, as_csv=True)
     write_json(metadata, output_dir / f"{run_id}_metadata.json")
-
-
-def write_summary(
-    output_root: Path, results: list[EvalResult], failures: list[dict[str, str]]
-) -> None:
-    summary = {
-        "total_runs": len(results) + len(failures),
-        "success_runs": len(results),
-        "failed_runs": len(failures),
-        "failures": failures,
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-    }
-    write_json(summary, output_root / "eval_summary.json")
 
 
 # ---------------------------------------------------------------------------
@@ -406,6 +402,10 @@ def main() -> None:
                     "algorithm": result.algorithm,
                     "use_masking": result.use_masking,
                     "seed": result.seed,
+                    "completed_job_count": result.completed_job_count,
+                    "evaluation_complete": result.evaluation_complete,
+                    "requested_max_steps": result.requested_max_steps,
+                    "termination_reason": result.termination_reason,
                 },
             )
             write_eval_outputs(runs_dir, result, metadata)
@@ -417,7 +417,6 @@ def main() -> None:
             if args.fail_fast:
                 break
 
-    write_summary(output_root, results, failures)
     print(f"Done: success={len(results)} fail={len(failures)}")
 
     # Fail the job, so Snakemake drops the completion marker instead of touching

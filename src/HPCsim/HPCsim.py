@@ -393,7 +393,13 @@ class HPCsim(gym.Env):
             mask[-1] = False
         return mask
 
-    def run(self):
+    def run(self, output_path=None):
+        """Run the heuristic scheduler and write its trace to ``output_path``.
+
+        ``output_path`` defaults to the historical result location for callers
+        outside the pipeline. Pipeline callers must provide a unique path so
+        concurrent baseline jobs cannot overwrite one another.
+        """
         start = time.time()
         self.result_dict = {}
         self.result_dict['time'] = []
@@ -403,7 +409,11 @@ class HPCsim(gym.Env):
         self.result_dict['mem_utilization'] = []
         self.last_time = 0
         self.check_queue_length = []
-        os.makedirs('result', exist_ok=True)
+        if output_path is None:
+            output_path = f'result/{self.scheduler_factor}+{self.allocator_factor}.csv'
+        output_dir = os.path.dirname(os.fspath(output_path))
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
         while (len(self.event_queue) + len(self.queue.job_queue)) > 0:
             self.check_queue_length.append(len(self.queue.job_queue))
             self.job_schedule_allocation()
@@ -421,7 +431,7 @@ class HPCsim(gym.Env):
             self.forward_system_time()
         end = time.time()
         print(f"Running time: {end - start:.4f} seconds")
-        pd.DataFrame(self.result_dict).to_csv(f'result/{self.scheduler_factor}+{self.allocator_factor}.csv', index=False)
+        pd.DataFrame(self.result_dict).to_csv(output_path, index=False)
 
     def forward_system_time(self):
         next_system_time = list(self.event_queue.items())[0][0]

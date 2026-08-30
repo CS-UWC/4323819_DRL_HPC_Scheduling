@@ -73,7 +73,7 @@ Note for DQN smoke on high-dimensional dict observations:
 
 - Deterministic/stochastic policy mode: `eval_deterministic` (config; default deterministic).
 - Development evaluation trace: the `*_dev70.tsv` split each model trained on (from the manifest).
-- Holdout evaluation: after `select_best`, the winning algorithm is re-evaluated across all seeds on the reserved `*_holdout30.tsv` split (`holdout_eval` → `holdout_aggregate` → `result/<trace>/holdout/holdout_summary.csv`). This is the only use of the holdout; no tuning is performed on it.
+- Holdout evaluation: after development-only selection, all six DRL treatments are evaluated across all configured seeds on the reserved `*_holdout30.tsv` split (`holdout_eval` → `holdout_aggregate` → `result/<trace>/holdout/holdout_summary.csv`) for final reporting. This is the only use of the holdout; no tuning or selection is performed on it.
 - Evaluation outputs: per-run metrics CSV/JSON under `result/<trace>/eval_runs/runs/`; holdout under `result/<trace>/holdout/`.
 - Resource profiling: per-decision latency (`decision_latency_mean_ms`) and eval wall time captured per run.
 

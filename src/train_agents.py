@@ -253,7 +253,8 @@ def parse_args() -> argparse.Namespace:
     )
 
     args = parser.parse_args()
-    args.split_id = Path(args.split_id).stem if "." in args.split_id else args.split_id
+    if args.split_id:
+        args.split_id = Path(args.split_id).stem if "." in args.split_id else args.split_id
     print(args)
     return args
 
