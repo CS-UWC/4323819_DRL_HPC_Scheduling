@@ -1,0 +1,11 @@
+metric_name,performed,statistic,p_value,significant,treatment_order,trend_direction
+avg_waiting,True,661.000000,0.998954,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+avg_slowdown,True,787.000000,0.018284,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+max_waiting,True,648.500000,0.999876,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+max_slowdown,True,763.000000,0.134632,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+avg_turnaround,True,644.000000,0.999941,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+cpu_utilization,True,827.000000,0.000059,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+gpu_utilization,True,836.000000,0.000009,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+episode_reward,True,870.000000,0.000000,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+decision_latency_mean_ms,True,644.000000,0.999941,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+eval_wall_s,True,841.000000,0.000003,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing

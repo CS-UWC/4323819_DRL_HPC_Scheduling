@@ -137,9 +137,9 @@ Avoid broad unit-test scaffolding. These interface-level checks should survive i
 
 **Exit check:** one documented command runs all checks locally.
 
-### Phase 3 — Publish a curated results release
+### Phase 3 — Publish a curated results release (complete)
 
-Create `results/v1/` from a frozen snapshot, not by copying the whole `cluster_results/` tree.
+`results/v1/` is published from the frozen snapshot with per-file hashes, source paths, available commits and commands, experiment metadata, and explicit provenance caveats.
 
 Publish:
 
@@ -157,7 +157,7 @@ Do not publish:
 - TensorBoard logs;
 - models/checkpoints;
 - generated split files or duplicate raw traces;
-- holdout outputs until Phase 0 resolves their release policy.
+- raw holdout runs; only the approved six-treatment seed and algorithm summaries are published.
 
 `results/v1/manifest.json` must record:
 
@@ -170,7 +170,7 @@ Do not publish:
 - SHA-256 for every published table and figure;
 - whether each artifact is development, holdout, or paper-curated evidence.
 
-**Exit check:** every result claim in README links to a versioned artifact with provenance.
+**Exit check:** complete — README result claims link to versioned artifacts, and `python scripts/validate_results_release.py` verifies the release manifest and experiment shape.
 
 ### Phase 4 — Build the README and Wiki information architecture
 

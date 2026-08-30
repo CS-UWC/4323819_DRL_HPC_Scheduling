@@ -1,0 +1,10 @@
+Treatment,Metric,Random median,DRL median,Δ%,Seeds better,p (Holm),vs. random
+MaskablePPO,Avg Wait,"1,171.719",850.901,-28.0%,10/10,0.012,Better
+MaskablePPO,Avg Slow.,7.199,3.645,-49.8%,10/10,0.012,Better
+MaskablePPO,Max Slow.,"5,921.342","2,267.550",-63.2%,10/10,0.012,Better
+MaskableDQN,Avg Wait,"1,171.719","45,551.950",+3900.3%,1/10,0.023,Worse
+MaskableDQN,Avg Slow.,7.199,721.107,+9995.8%,1/10,0.023,Worse
+MaskableDQN,Max Slow.,"5,921.342","957,643.358",+12070.5%,1/10,0.023,Worse
+MaskableA2C,Avg Wait,"1,171.719",837.357,-27.8%,8/10,1.000,Not sep.
+MaskableA2C,Avg Slow.,7.199,3.646,-48.6%,8/10,1.000,Not sep.
+MaskableA2C,Max Slow.,"5,921.342","2,307.000",-55.7%,8/10,1.000,Not sep.

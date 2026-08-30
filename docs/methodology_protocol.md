@@ -35,6 +35,8 @@ Use this file as the canonical methodology specification for Submission 2.
 | A2C | Actor-critic | No | stable-baselines3 | |
 | DQN | Value-based | No | stable-baselines3 | |
 
+Controls are LCFS, SJF, and UNICEP plus a seed-paired masked uniform-random policy. The primary heuristic comparison disables backfill so the mechanism matches what the DRL policies can do; backfill-enabled runs are retained only as a sensitivity band. `baseline_backfill` controls this explicitly and treatment IDs distinguish `bf` from `nobf`.
+
 ## 4. Environment and Data
 
 - Environment implementation path:

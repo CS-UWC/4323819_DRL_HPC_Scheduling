@@ -35,6 +35,8 @@ for module_name, attributes in ALGORITHM_STUBS.items():
 
 from src.HPCsim.HPCsim import HPCsim
 from src.aggregate_results import main as aggregate_main
+from src.baseline_compare import main as baseline_compare_main
+from src.run_baseline import baseline_treatment_id
 from src.select_best import main as select_best_main
 from src.utils import MANIFEST_REQUIRED, load_split_metadata, write_manifest_entry
 
@@ -68,6 +70,10 @@ class PipelineContractTests(unittest.TestCase):
             )
             with self.assertRaises(FileNotFoundError):
                 load_split_metadata(directory, "physical_job_r7")
+
+    def test_baseline_identity_distinguishes_backfill_modes(self) -> None:
+        self.assertEqual(baseline_treatment_id("sjf", False), "sjf__mask_false__nobf")
+        self.assertEqual(baseline_treatment_id("sjf", True), "sjf__mask_false__bf")
 
     def test_hpcsim_run_writes_to_explicit_path(self) -> None:
         class FakeQueue:
@@ -117,6 +123,38 @@ class PipelineContractTests(unittest.TestCase):
             with patch.object(sys, "argv", [*args, "--allow-partial"]):
                 aggregate_main()
             self.assertTrue((root / "aggregate" / "eval_wide.csv").exists())
+
+    def test_random_control_is_descriptive_not_a_deterministic_baseline_test(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "best.json").write_text(json.dumps({"treatment_id": "winner"}))
+            pd.DataFrame([
+                {"treatment_id": "winner", "avg_waiting_mean": 1.0, "avg_slowdown_mean": 1.0},
+                {"treatment_id": "winner", "avg_waiting_mean": 2.0, "avg_slowdown_mean": 2.0},
+            ]).to_csv(root / "seeds.csv", index=False)
+            baselines = pd.DataFrame([
+                {"treatment_id": "sjf__mask_false__nobf", "algorithm": "sjf",
+                 "avg_waiting_mean_mean": 3.0, "avg_slowdown_mean_mean": 3.0},
+                {"treatment_id": "random__mask_true", "algorithm": "random",
+                 "avg_waiting_mean_mean": 3.0, "avg_slowdown_mean_mean": 3.0},
+            ])
+            baselines.to_csv(root / "baselines.csv", index=False)
+            pd.DataFrame([{"treatment_id": "winner", "algorithm": "ppo"}]).to_csv(
+                root / "algorithms.csv", index=False
+            )
+            with patch.object(sys, "argv", [
+                "baseline_compare", "--best-algorithm", str(root / "best.json"),
+                "--seed-summary", str(root / "seeds.csv"),
+                "--baseline-summary", str(root / "baselines.csv"),
+                "--algorithm-summary", str(root / "algorithms.csv"),
+                "--output", str(root / "comparison.csv"),
+                "--descriptive-output", str(root / "descriptive.csv"),
+            ]):
+                baseline_compare_main()
+            compared = set(pd.read_csv(root / "comparison.csv")["baseline_treatment_id"])
+            described = set(pd.read_csv(root / "descriptive.csv")["treatment_id"])
+            self.assertEqual(compared, {"sjf__mask_false__nobf"})
+            self.assertIn("random__mask_true", described)
 
     def test_selector_honours_configured_metrics_and_writes_rationale(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

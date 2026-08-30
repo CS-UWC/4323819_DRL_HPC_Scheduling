@@ -60,12 +60,18 @@ from src.utils import (
 # into every heuristic invocation, which needs neither.
 
 
-def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
+def baseline_treatment_id(algorithm: str, backfill: bool) -> str:
+    return f"{algorithm}__mask_false__{'bf' if backfill else 'nobf'}"
+
+
+def run_one(
+    row: dict, run_id: str, partition: str, result_dir: Path, backfill: bool
+) -> None:
     algorithm = str(row["algorithm"])
     trace_file = str(row["trace_file"])
     allocator = "best_fit"
     split_id = row["split_id"]
-    treatment_id = f"{algorithm}__mask_false"
+    treatment_id = str(row["treatment_id"])
     result_dir.mkdir(parents=True, exist_ok=True)
     stem = metrics_stem(treatment_id, str(split_id))
     out_csv = result_dir / f"{stem}_metrics.csv"
@@ -75,7 +81,7 @@ def run_one(row: dict, run_id: str, partition: str, result_dir: Path) -> None:
     env = HPCsim(
         scheduler=algorithm,
         allocator=allocator,
-        backfill_enable=True,
+        backfill_enable=backfill,
         topology_file=str(row["topology_file"]),
         node_file=str(row["node_file"]),
         trace_file=trace_file,
@@ -149,7 +155,7 @@ def run_random(
     """Run the uniform-random-over-valid-actions control (N27).
 
     Deliberately does NOT call run_one(): that path is HPCsim.run(), the
-    heuristic loop with backfill, which is a different simulator from the MDP
+    heuristic loop, which is a different simulator from the MDP
     the DRL treatments are evaluated on. Rolling the control through the
     heuristic loop would make it a fourth heuristic instead of a control for
     policy quality. See src/random_control.py for the full argument.
@@ -202,7 +208,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--algorithm", "--algo", dest="algorithm", metavar="ALGORITHM",
-        help="Name of algorithm (must be in TRAD_ALGORITHMS).", required=True, type=str,
+        help="Scheduling heuristic or random control.", required=True, type=str,
+        choices=[*TRAD_ALGORITHMS, RANDOM_ALGORITHM],
     )
     parser.add_argument(
         "--split_id", default=None, dest="split_id", metavar="SPLIT_ID",
@@ -222,7 +229,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--force", action="store_true", default=False,
-        help="Re-run even if this algorithm/split_id is already in the manifest.",
+        help="Re-run even if this treatment/split_id is already in the manifest.",
+    )
+    parser.add_argument(
+        "--backfill", action=argparse.BooleanOptionalAction, default=True,
+        help="Enable heuristic backfill. The paper's controlled comparison uses --no-backfill.",
     )
     parser.add_argument(
         "--seed", default=None, type=int, metavar="SEED",
@@ -262,7 +273,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     is_random = args.algorithm == RANDOM_ALGORITHM
-    treatment_id = RANDOM_TREATMENT_ID if is_random else f"{args.algorithm}__mask_false"
+    treatment_id = (
+        RANDOM_TREATMENT_ID
+        if is_random
+        else baseline_treatment_id(args.algorithm, args.backfill)
+    )
     trace = f"data/splits/{args.split_id}.tsv"
     manifest_path = Path(args.manifest_path)
     result_path = Path(args.result_dir)
@@ -270,7 +285,8 @@ def main() -> None:
     if manifest_path.exists():
         existing = pd.read_csv(manifest_path)
         already_run = existing[
-            (existing["algorithm"] == args.algorithm) & (existing["split_id"] == args.split_id)
+            (existing["treatment_id"] == treatment_id)
+            & (existing["split_id"] == args.split_id)
         ]
         # For the random control the unit of work is (algorithm, split, seed),
         # not (algorithm, split): 10 seeds are 10 legitimately distinct rows,
@@ -318,7 +334,7 @@ def main() -> None:
             max_steps=args.max_steps,
         )
     else:
-        run_one(row, run_id, args.partition, result_path)
+        run_one(row, run_id, args.partition, result_path, backfill=args.backfill)
 
 
 if __name__ == "__main__":

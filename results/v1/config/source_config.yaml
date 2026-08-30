@@ -1,0 +1,109 @@
+# =============================================================================
+# config.yaml — DRLScheduler Pipeline Configuration
+# =============================================================================
+# Usage:
+#   Full run:   snakemake --configfile config.yaml
+#   Smoke test: snakemake --configfile config.smoke.yaml
+# =============================================================================
+
+# --- Execution -----------------------------------------------------------
+# NOTE: Snakemake runner settings (executor, jobs, use-singularity,
+# apptainer-args, latency-wait, rerun-incomplete, default-resources) live in
+# profiles/slurm/config.yaml — the single source of truth for SLURM execution.
+# This file holds workflow parameters only. Run with --profile profiles/slurm.
+
+# --- Container ---------------------------------------------------------------
+container: "DRL_env.sif"
+
+# --- Trace -------------------------------------------------------------------
+trace_name: "physical_job"         # "physical_job" | "deeplearn_job" (must match data/<trace_name>.csv)
+
+# --- Seeds -------------------------------------------------------------------
+seeds: [210169, 250564, 20603, 170797, 21095, 21385, 16843, 45765, 57434, 35474]   # 10 seeds: n=5 underpowers the Wilcoxon signed-rank test for the pairwise algorithm comparisons
+
+# --- Algorithms --------------------------------------------------------------
+algorithms:
+  - "ppo"
+  - "a2c"
+  - "dqn"
+  - "maskable_ppo"
+  - "maskable_a2c"
+  - "maskable_dqn"
+
+# --- Baseline -----------------------------------------------------------------
+baseline_only: False
+trad_algorithms:
+  # - "fcfs"
+  - "lcfs"
+  - "sjf"
+  # - "wfp3"
+  - "unicep"
+  # - "f_1"
+  # - "f_2"
+
+# Uniform-random-over-valid-actions control (reviewer item N27). Not a
+# heuristic and deliberately not in trad_algorithms: it runs the RL MDP, not
+# HPCsim.run(), so that it controls for policy quality and nothing else. It is
+# the only stochastic baseline, so it reuses `seeds` above (one job per seed)
+# and is the only baseline row reported as mean +/- std.
+# Evaluation only -- no training, no GPU. See src/random_control.py.
+random_control: true
+
+# -- Allocator -----------------------------------------------------------------
+allocators:
+  - "best_fit"
+  # - "topology_aware"
+  # - "first_available"
+
+# --- Training hyperparameters ------------------------------------------------
+save_interval: 300000
+total_saving: 10                   # total timesteps = save_interval * total_saving = 3M steps. 10 checkpoints (was 30 at 100k); pipeline evals only the final (3000000.zip), so fewer snapshots = ~3x less scratch I/O.
+window_size: 512
+tail_size: 64
+buffer_size: 150_000               # DQN replay buffer. float32 obs (src/obs_wrapper.py) = 219 KB; SB3 stores obs+next_obs so each transition ≈ 0.44 MB. 150k ≈ 66 GB; with DQN now on 20 env workers (~40 GB) it fits the 120 GB request on 128 GB nodes. float64 (438 KB) would have needed 132 GB. Dict obs forbids optimize_memory_usage in SB3.
+n_envs: 20                         # SubprocVecEnv workers for all algorithms (DQN vectorized too); 20 workers + 1 main = 21 of 24 cores
+batch_size: 2048                   # minibatch size: PPO (buffer=n_envs*n_steps=40960, 20 batches/epoch × 5 epochs=100 steps); DQN (replay sample size)
+n_epochs: 5                        # PPO optimisation epochs per rollout (SB3 default 10; halved to cut update time)
+learning_rate: "linear_3e-4"       # linear decay 3e-4 -> 0 over training; keeps fast early learning, tames late clip_fraction climb. Use "3e-4" for constant.
+
+# --- Topology ----------------------------------------------------------------
+# topology_file is auto-selected from trace_name in the Snakefile (TRACE_TO_TOPOLOGY):
+# physical_job -> physical_topology.txt, deeplearn_job -> deeplearn_topology.txt.
+# Do NOT re-add a static topology_file key — a hard-coded value silently ran
+# deeplearn on the physical topology and collapsed every training episode.
+node_file: "nodes.csv"
+
+# --- Statistical test parameters ---------------------------------------------
+alpha: 0.05
+
+# --- Evaluation --------------------------------------------------------------
+eval_deterministic: true
+eval_max_steps: null               # null = full episode; integer = early stop
+
+# --- Pareto Select -----------------------------------------------------------
+pareto_metrics:
+  - "avg_waiting"
+  - "avg_slowdown"
+  - "avg_turnaround"
+  - "max_waiting"
+  - "max_slowdown"
+  - "cpu_utilization"
+
+pareto_tiebreakers:
+  - "avg_waiting"
+  - "avg_slowdown"
+  - "cpu_utilization"
+
+# --- Visualisation -----------------------------------------------------------
+visualisation:
+  plots_enabled: true
+  tables_enabled: true
+  cd_diagrams: true
+  confidence_curves: true
+  bar_graphs: true
+  spider_diagrams: false
+  heatmaps: false
+
+
+
+

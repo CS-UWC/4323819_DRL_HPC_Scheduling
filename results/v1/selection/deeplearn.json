@@ -1,0 +1,112 @@
+{
+  "selection_rationale": {
+    "final_rationale": {
+      "method": "single_pareto_candidate"
+    },
+    "overall": {
+      "page_trend": {
+        "any_significant": true,
+        "available": true,
+        "rows": [
+          {
+            "metric_name": "avg_waiting",
+            "p_value": 0.998954,
+            "significant": false
+          },
+          {
+            "metric_name": "avg_slowdown",
+            "p_value": 0.018284,
+            "significant": true
+          },
+          {
+            "metric_name": "max_waiting",
+            "p_value": 0.999876,
+            "significant": false
+          },
+          {
+            "metric_name": "max_slowdown",
+            "p_value": 0.134632,
+            "significant": false
+          },
+          {
+            "metric_name": "avg_turnaround",
+            "p_value": 0.999941,
+            "significant": false
+          },
+          {
+            "metric_name": "cpu_utilization",
+            "p_value": 5.9e-05,
+            "significant": true
+          },
+          {
+            "metric_name": "gpu_utilization",
+            "p_value": 9e-06,
+            "significant": true
+          },
+          {
+            "metric_name": "episode_reward",
+            "p_value": 0.0,
+            "significant": true
+          },
+          {
+            "metric_name": "decision_latency_mean_ms",
+            "p_value": 0.999941,
+            "significant": false
+          },
+          {
+            "metric_name": "eval_wall_s",
+            "p_value": 3e-06,
+            "significant": true
+          }
+        ]
+      },
+      "pareto_classes_after_stat_filter": [
+        [
+          "maskable_ppo__mask_true"
+        ]
+      ],
+      "pareto_front_before": [
+        "maskable_ppo__mask_true"
+      ],
+      "partial_trace_check": {
+        "applied": true,
+        "excluded": {
+          "a2c__mask_false": 10432.1835232,
+          "dqn__mask_false": 10408.172165699998,
+          "ppo__mask_false": 10423.3650171
+        },
+        "implied_runtime_by_treatment": {
+          "a2c__mask_false": 10432.1835232,
+          "dqn__mask_false": 10408.172165699998,
+          "maskable_a2c__mask_true": 10566.920630399149,
+          "maskable_dqn__mask_true": 10566.920630199998,
+          "maskable_ppo__mask_true": 10566.9206304,
+          "ppo__mask_false": 10423.3650171
+        },
+        "reference_implied_runtime_s": 10566.921,
+        "tolerance_s": 1.0
+      },
+      "partial_trace_excluded": [
+        "a2c__mask_false",
+        "dqn__mask_false",
+        "ppo__mask_false"
+      ],
+      "partial_trace_flagged_by_run": [],
+      "stats_rationale": {
+        "equivalence_classes": [
+          [
+            "maskable_ppo__mask_true"
+          ]
+        ],
+        "indistinguishable_pairs_across_primaries": [],
+        "pareto_count": 1
+      }
+    }
+  },
+  "tie_break_metrics": {
+    "avg_slowdown": 3.6410080000000002,
+    "avg_waiting": 846.1176929,
+    "cpu_utilization": 0.117236
+  },
+  "treatment_id": "maskable_ppo__mask_true"
+}

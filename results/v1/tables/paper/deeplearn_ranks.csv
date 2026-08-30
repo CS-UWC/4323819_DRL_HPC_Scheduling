@@ -1,0 +1,7 @@
+Algorithm,Mean Rank,Median,Mean,p vs. best
+PPO†,1.7,821,818,0.066
+A2C†,2.2,821,"4,274",0.261
+DQN†,3.1,825,"19,328",0.891
+MaskablePPO,**4.0**,851,846,---
+MaskableA2C,4.3,837,"24,520,863",0.999
+MaskableDQN,5.7,"45,552","45,729",0.324

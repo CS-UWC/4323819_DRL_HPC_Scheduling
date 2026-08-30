@@ -1,0 +1,11 @@
+metric_name,performed,statistic,p_value,significant,treatment_order,trend_direction
+avg_waiting,True,838.000000,0.000006,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+avg_slowdown,True,841.000000,0.000003,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+max_waiting,True,638.000000,0.999982,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+max_slowdown,True,798.500000,0.005301,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+avg_turnaround,True,832.000000,0.000022,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+cpu_utilization,True,841.000000,0.000003,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+gpu_utilization,True,735.000000,0.507981,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+episode_reward,True,881.000000,0.000000,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",increasing
+decision_latency_mean_ms,True,646.000000,0.999914,False,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing
+eval_wall_s,True,840.000000,0.000004,True,"['dqn__mask_false', 'a2c__mask_false', 'ppo__mask_false', 'maskable_dqn__mask_true', 'maskable_a2c__mask_true', 'maskable_ppo__mask_true']",decreasing

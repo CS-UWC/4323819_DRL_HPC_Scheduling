@@ -24,6 +24,7 @@ algorithms:
 
 # --- Baseline (REQUIRED keys: trad_algorithms, baseline_only) ----------------
 baseline_only: false
+baseline_backfill: false           # match the controlled paper comparison
 # Exercise the N27 random-control stage in the smoke run too. eval_max_steps
 # below caps the rollout, so the two smoke seeds cost seconds, not a full pass.
 random_control: true

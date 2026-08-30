@@ -1,0 +1,3 @@
+Trace,Algorithm,Avg Wait (s),Avg Slowdown,Avg Turnaround (s),Max Slowdown,CPU Util
+Physical,MaskableA2C,557 ± 5,7.20 ± 0.14,"8,617",591,0.1466
+Deeplearn,MaskablePPO,"2,642 ± 66",29.11 ± 0.45,"8,510","4,107",0.1863

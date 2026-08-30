@@ -1,0 +1,6 @@
+Reference,Dev,Dev Δ%,Holdout,Holdout Δ%,Shift (pp)
+MaskableA2C (selected),"2,223 ± 42",---,557 ± 5,---,---
+LCFS,"2,090",+6.4%,488,+14.3%,+7.9
+SJF,"2,176",+2.1%,564,-1.2%,-3.4
+UNICEP,"2,499",-11.0%,568,-1.8%,+9.2
+Random (masked),"2,166",+2.6%,562,-0.9%,-3.5

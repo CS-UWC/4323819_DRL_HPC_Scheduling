@@ -32,6 +32,7 @@ algorithms:
 
 # --- Baseline -----------------------------------------------------------------
 baseline_only: False
+baseline_backfill: false           # controlled paper comparison; true reproduces the backfill band
 trad_algorithms:
   # - "fcfs"
   - "lcfs"

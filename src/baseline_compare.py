@@ -38,7 +38,7 @@ from pathlib import Path
 import pandas as pd
 from scipy import stats
 
-from src.utils import METRIC_DIRECTION, write_csv
+from src.utils import METRIC_DIRECTION, RANDOM_ALGORITHM, write_csv
 
 PRIMARY_METRICS = ["avg_waiting", "avg_slowdown"]
 
@@ -113,7 +113,10 @@ def main() -> None:
         sys.exit(1)
 
     results = []
-    for _, baseline_row in baseline_summary.iterrows():
+    deterministic_baselines = baseline_summary[
+        baseline_summary["algorithm"] != RANDOM_ALGORITHM
+    ]
+    for _, baseline_row in deterministic_baselines.iterrows():
         for metric in args.metrics:
             mean_col = f"{metric}_mean" if f"{metric}_mean" in drl_rows.columns else metric
             if mean_col not in drl_rows.columns:

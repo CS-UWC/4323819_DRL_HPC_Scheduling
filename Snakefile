@@ -125,6 +125,8 @@ BASELINE_ONLY = config.get("baseline_only", False)
 # stochastic, and matching the DRL seed set keeps the two sides' +/- terms
 # comparable. Off only if you deliberately want the pre-N27 baseline set back.
 RANDOM_CONTROL = config.get("random_control", True)
+BASELINE_BACKFILL = config.get("baseline_backfill", False)
+BASELINE_BACKFILL_FLAG = "--backfill" if BASELINE_BACKFILL else "--no-backfill"
 N_ENVS = config.get("n_envs", 1)     # SubprocVecEnv workers for PPO/A2C
 BATCH_SIZE = config.get("batch_size", 2048)  # minibatch size for PPO/DQN gradient updates
 N_EPOCHS = config.get("n_epochs", 5)         # PPO optimisation epochs per rollout
@@ -571,6 +573,7 @@ rule baseline:
               --partition {params.partition} \
               --result-dir {params.output_dir} \
               --manifest-path {params.manifest_path} \
+              {BASELINE_BACKFILL_FLAG} \
               --force \
               >> {log} 2>&1 &
         done
@@ -722,10 +725,12 @@ rule baseline_holdout:
               --partition {params.partition} \
               --result-dir {params.output_dir} \
               --manifest-path {params.manifest_path} \
+              {BASELINE_BACKFILL_FLAG} \
               --force \
               >> {log} 2>&1 &
         done
         wait
+        touch {output.marker}
         """
 
 rule baseline_holdout_random:

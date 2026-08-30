@@ -1,0 +1,10 @@
+Metric,χ²,df,p,Kendall's W,Interpretation,Sig.
+Avg waiting,25.09,5,1.34e-04,0.502,Moderate Agreement,Yes
+Avg slowdown,28.00,5,3.64e-05,0.560,Moderate Agreement,Yes
+Max waiting,34.11,5,2.26e-06,0.682,Substantial Agreement,Yes
+Max slowdown,34.83,5,1.63e-06,0.697,Substantial Agreement,Yes
+Avg turnaround,22.11,5,4.98e-04,0.442,Moderate Agreement,Yes
+CPU utilisation,28.95,5,2.37e-05,0.579,Moderate Agreement,Yes
+Episode reward,43.77,5,2.58e-08,0.875,Almost Perfect Agreement,Yes
+Decision latency,37.71,5,4.31e-07,0.754,Substantial Agreement,Yes
+Evaluation wall time,47.14,5,5.31e-09,0.943,Almost Perfect Agreement,Yes

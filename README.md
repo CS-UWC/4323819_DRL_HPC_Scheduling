@@ -82,7 +82,13 @@ Run `just help` to see all available targets.
 
 ## Results
 
-The full experiment is complete: six DRL treatments were evaluated with ten seeds on each of two traces. Development data was used for selection; all six treatments were then evaluated on the isolated time-ordered holdout for final reporting. A curated, provenance-checked results bundle will be added under `results/v1/` in the results-publication phase.
+The full experiment is complete: six DRL treatments were evaluated with ten seeds on each of two traces. Development data was used for selection; all six treatments were then evaluated on the isolated time-ordered holdout for final reporting.
+
+- **Physical trace:** no learned DRL treatment outperformed the masked random control ([summary](results/v1/tables/paper/physical_main.csv), [paired comparison](results/v1/tables/paper/physical_vs_random.csv)).
+- **Heterogeneous deeplearn trace:** MaskablePPO improved tail behaviour, but no leading DRL treatment separated statistically at ten seeds ([summary](results/v1/tables/paper/deeplearn_main.csv), [ranks](results/v1/figures/deeplearn_cd_diagram_avg_waiting.png)).
+- **Overall:** masking supplied deployability rather than a general schedule-quality advantage.
+
+See the curated [`results/v1/`](results/v1/) release and its machine-readable [provenance manifest](results/v1/manifest.json). Unmasked-treatment truncation and two duplicate physical timing observations are documented there.
 
 ---
 

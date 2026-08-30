@@ -1,0 +1,6 @@
+# Frozen source artifacts must retain their exact bytes and hashes.
+results/v1/config/** -text -diff
+results/v1/figures/** -text -diff
+results/v1/provenance/** -text -diff
+results/v1/selection/** -text -diff
+results/v1/tables/** -text -diff

@@ -1,0 +1,19 @@
+Treatment,Heuristic,Metric,Heuristic value,DRL median,Δ%,Seeds better,p (Holm),TOST p (±10%),Equivalent
+MaskablePPO,LCFS,Avg Wait,"2,089.783","2,242.491",+7.3%,0/10,0.012,0.003,Yes
+MaskablePPO,LCFS,Avg Slow.,5.883,7.335,+24.7%,0/10,0.012,1.000,No
+MaskablePPO,LCFS,Max Slow.,"3,095.636","2,914.091",-5.9%,10/10,0.012,<0.001,Yes
+MaskablePPO,SJF,Avg Wait,"2,176.480","2,242.491",+3.0%,0/10,0.012,<0.001,Yes
+MaskablePPO,SJF,Avg Slow.,8.142,7.335,-9.9%,9/10,0.012,0.246,No
+MaskablePPO,SJF,Max Slow.,"3,060.273","2,914.091",-4.8%,10/10,0.012,<0.001,Yes
+MaskablePPO,UNICEP,Avg Wait,"2,498.839","2,242.491",-10.3%,10/10,0.012,0.722,No
+MaskablePPO,UNICEP,Avg Slow.,15.872,7.335,-53.8%,10/10,0.012,1.000,No
+MaskablePPO,UNICEP,Max Slow.,"3,512.900","2,914.091",-17.0%,10/10,0.012,1.000,No
+MaskableA2C,LCFS,Avg Wait,"2,089.783","2,212.443",+5.9%,0/10,0.012,<0.001,Yes
+MaskableA2C,LCFS,Avg Slow.,5.883,7.305,+24.2%,0/10,0.012,1.000,No
+MaskableA2C,LCFS,Max Slow.,"3,095.636","2,962.182",-4.3%,10/10,0.012,<0.001,Yes
+MaskableA2C,SJF,Avg Wait,"2,176.480","2,212.443",+1.7%,1/10,0.016,<0.001,Yes
+MaskableA2C,SJF,Avg Slow.,8.142,7.305,-10.3%,10/10,0.012,0.312,No
+MaskableA2C,SJF,Max Slow.,"3,060.273","2,962.182",-3.2%,9/10,0.016,<0.001,Yes
+MaskableA2C,UNICEP,Avg Wait,"2,498.839","2,212.443",-11.5%,10/10,0.012,0.968,No
+MaskableA2C,UNICEP,Avg Slow.,15.872,7.305,-54.0%,10/10,0.012,1.000,No
+MaskableA2C,UNICEP,Max Slow.,"3,512.900","2,962.182",-15.7%,10/10,0.012,1.000,No
