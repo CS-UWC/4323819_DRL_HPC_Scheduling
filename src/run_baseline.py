@@ -49,6 +49,7 @@ from src.utils import (
     PARTITION_CONFIGS,
     RANDOM_ALGORITHM,
     RANDOM_TREATMENT_ID,
+    TRAD_ALGORITHMS,
     RunSpec,
     write_csv,
     write_json,

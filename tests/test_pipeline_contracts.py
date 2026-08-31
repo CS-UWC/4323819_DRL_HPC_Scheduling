@@ -37,7 +37,7 @@ for module_name, attributes in ALGORITHM_STUBS.items():
 from src.HPCsim.HPCsim import HPCsim
 from src.aggregate_results import main as aggregate_main
 from src.baseline_compare import main as baseline_compare_main
-from src.run_baseline import baseline_treatment_id
+from src.run_baseline import baseline_treatment_id, parse_args as parse_baseline_args
 from src.select_best import main as select_best_main
 from src.utils import MANIFEST_REQUIRED, load_split_metadata, write_manifest_entry
 
@@ -71,6 +71,14 @@ class PipelineContractTests(unittest.TestCase):
             )
             with self.assertRaises(FileNotFoundError):
                 load_split_metadata(directory, "physical_job_r7")
+
+    def test_random_baseline_cli_accepts_a_seeded_control(self) -> None:
+        with patch.object(sys, "argv", [
+            "run_baseline", "--algorithm", "random", "--seed", "1",
+            "--split_id", "physical_job_dev70",
+        ]):
+            args = parse_baseline_args()
+        self.assertEqual((args.algorithm, args.seed), ("random", 1))
 
     def test_baseline_identity_distinguishes_backfill_modes(self) -> None:
         self.assertEqual(baseline_treatment_id("sjf", False), "sjf__mask_false__nobf")
