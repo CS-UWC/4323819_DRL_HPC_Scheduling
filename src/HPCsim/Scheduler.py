@@ -17,23 +17,6 @@ class Scheduler:
 
         self.scheduler = self.scheduler_map.get(default, self.fcfs)
 
-    # NOTE FOR FUTURE REFACTOR:
-    # All 7 selector methods (fcfs, lcfs, sjf, wfp3, unicep, f_1, f_2) share identical
-    # structure: build a heapq with a priority key, pop the top job, call
-    # check_allocate_list, return True/False. Only the priority key expression differs.
-    # These could be unified into a single _select(priority_fn) dispatcher:
-    #
-    #   def _select(self, job_queue, cluster, priority_fn):
-    #       job_heap = []
-    #       for counter, job in enumerate(job_queue):
-    #           heapq.heappush(job_heap, (priority_fn(job), counter, job))
-    #       _, _, prio_job = heapq.heappop(job_heap)
-    #       can, node_dict = cluster.check_allocate_list(prio_job)
-    #       return (True, prio_job, node_dict) if can else (False, prio_job, job_heap)
-    #
-    # Each selector would then be a one-liner calling self._select(..., lambda job: <key>).
-    # Deferred to avoid risk of changing working simulation code.
-
     def fcfs(self, job_queue, cluster, time):
         job_heap = []
         counter = 0

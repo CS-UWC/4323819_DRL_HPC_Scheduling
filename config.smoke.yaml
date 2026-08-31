@@ -61,11 +61,3 @@ pareto_metrics:
 pareto_tiebreakers:
   - "avg_waiting"
   - "avg_slowdown"
-
-# --- Visualisation (REQUIRED key, even if all flags are false for smoke) ----
-visualisation:
-  plots_enabled: true
-  tables_enabled: true
-  cd_diagrams: true
-  confidence_curves: true
-  bar_graphs: true

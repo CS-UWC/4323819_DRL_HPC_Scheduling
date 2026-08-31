@@ -148,8 +148,6 @@ PARETO_METRICS_STR = " ".join(PARETO_METRICS)
 PARETO_TIEBREAKERS = config["pareto_tiebreakers"]
 PARETO_TIEBREAKERS_STR = " ".join(PARETO_TIEBREAKERS)
 
-VIS_CONFIG = config.get("visualisation", {})
-
 # =============================================================================
 # INPUT VALIDATION
 # =============================================================================

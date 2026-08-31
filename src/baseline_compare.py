@@ -21,11 +21,13 @@ results/discussion section, not a replacement for or addition to
 stats_summary.json.
 
 Usage:
-    python src/baseline_compare.py \\
-        --best-algorithm result/physical_job/best_algorithm.json \\
+    python -m src.baseline_compare \\
+        --best-algorithm result/physical_job/best/best_algorithm.json \\
         --seed-summary result/physical_job/aggregate/seed_summary.csv \\
+        --algorithm-summary result/physical_job/aggregate/algorithm_summary.csv \\
         --baseline-summary result/physical_job/baseline/baseline_summary.csv \\
-        --output result/physical_job/baseline/baseline_comparison.csv
+        --output result/physical_job/baseline/baseline_comparison.csv \\
+        --descriptive-output result/physical_job/baseline/descriptive_comparison_table.csv
 """
 
 from __future__ import annotations

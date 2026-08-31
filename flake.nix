@@ -36,7 +36,21 @@
         overlays = [ torchBinOverlay ];
       };
 
-      # Unified python environment
+      # Lightweight contract-test environment; deliberately excludes PyTorch/CUDA.
+      testPythonEnv = pkgs.python312.withPackages (ps: with ps; [
+        numpy pandas scipy networkx gymnasium python-dateutil
+        (ps.callPackage ./nix/paretoset.nix {})
+      ]);
+
+      testRunner = pkgs.writeShellApplication {
+        name = "drl-scheduler-tests";
+        runtimeInputs = [ testPythonEnv pkgs.bash pkgs.rsync ];
+        text = ''
+          python -W error::ResourceWarning -m unittest discover -s tests -v
+        '';
+      };
+
+      # Full training and workflow environment.
       myPythonEnv = pkgs.python312.withPackages (ps: with ps; [
         numpy pandas matplotlib pillow sympy networkx
         gymnasium torch torchvision stable-baselines3
@@ -51,10 +65,22 @@
         (ps.callPackage ./nix/snakemake_slurm_jobstep.nix {})
       ]);
     in {
-      devShells.${system}.default = pkgs.mkShell {
-        # Optional: expose GPU on nvidia hosts via host driver
-        LD_LIBRARY_PATH = "/run/opengl-driver/lib";
-        packages = [ myPythonEnv pkgs.snakemake pkgs.graphviz pkgs.just pkgs.skopeo pkgs.apptainer pkgs.rsync pkgs.tmux ];
+      apps.${system}.test = {
+        type = "app";
+        program = "${testRunner}/bin/drl-scheduler-tests";
+        meta.description = "Run contract tests without PyTorch or CUDA";
+      };
+
+      devShells.${system} = {
+        test = pkgs.mkShell {
+          packages = [ testPythonEnv pkgs.rsync ];
+        };
+
+        default = pkgs.mkShell {
+          # Optional: expose GPU on nvidia hosts via host driver
+          LD_LIBRARY_PATH = "/run/opengl-driver/lib";
+          packages = [ myPythonEnv pkgs.snakemake pkgs.graphviz pkgs.just pkgs.skopeo pkgs.apptainer pkgs.rsync pkgs.tmux ];
+        };
       };
 
       # GPU-enabled PyTorch without pulling cudaSupport into every other package.

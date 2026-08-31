@@ -55,3 +55,7 @@ Reviewer outcome: parallel standards/spec review **PASS**. Known residual caveat
 ## Completed record: Phase 4 documentation gate
 
 On 2026-08-30, the Phase 4 tree passed 12 unit/contract checks, all four smoke/production × physical/deeplearn DAG dry-runs, `nix flake check --no-build`, shell syntax checks, local Markdown path/fragment checks, documented-`just` target checks, release validation, Python compilation, and `git diff --check`. The GitHub Wiki source is backed up under `wiki/`; its separate remote remains uninitialized and requires the repository owner to create the first Wiki page before publication.
+
+## Completed record: Phase 5 cleanup gate
+
+On 2026-08-31, `nix run .#test` passed 13 checks from a 53-path closure containing no Torch, CUDA, cuDNN, NCCL, or Triton paths. All four DAG dry-runs, `nix flake check --no-build`, release validation, shell syntax, and `git diff --check` passed. `git status --ignored` contained only intentional `.snakemake/` state and generated `data/splits/`; local Python caches were removed.

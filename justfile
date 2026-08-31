@@ -54,6 +54,9 @@ ARCHIVE := env_var_or_default("ARCHIVE", env_var("HOME") + "/drl_archive")
     echo "  slurm_report                - Generate efficiency report after run"
     echo "  build_sif                   - Build Apptainer .sif from Nix flake"
     echo ""
+    echo "CHECKS:"
+    echo "  test                 - Run contract tests without PyTorch/CUDA"
+    echo ""
     echo "MAINTENANCE:"
     echo "  clean                - Remove all outputs except data and logs"
     echo "  clean_all            - Remove all outputs including logs"
@@ -215,17 +218,24 @@ export_dag trace="physical":
     echo "✓ Both DAGs exported to plots/"
 
 # =============================================================================
+# CHECKS
+# =============================================================================
+
+@test:
+    nix run .#test
+
+# =============================================================================
 # MAINTENANCE TARGETS
 # =============================================================================
 
 @clean:
     echo "Cleaning pipeline outputs (data, code, and logs preserved)..."
-    rm -rf result/ trained_model/ .snakemake/
+    rm -rf result/ trained_model/ plots/ .snakemake/
     echo "✓ Clean complete"
 
 @clean_all:
     echo "Cleaning all outputs including logs..."
-    rm -rf result/ trained_model/ .snakemake/ logs/run_log.csv logs/baseline_run_log.csv logs/snakemake/
+    rm -rf result/ trained_model/ plots/ .snakemake/ logs/run_log.csv logs/baseline_run_log.csv logs/snakemake/
     echo "✓ Full clean complete"
 
 @nix_develop:
@@ -238,5 +248,4 @@ export_dag trace="physical":
 # Environment:      Nix (nix develop required before running)
 # Snakemake:        9.4.3+
 # just:             https://just.systems/man/en/
-# TODO (future): Add Conda support as alternative to Nix
 # =============================================================================

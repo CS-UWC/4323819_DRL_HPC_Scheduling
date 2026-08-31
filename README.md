@@ -77,8 +77,8 @@ just dry_run_slurm physical
 just run_full_slurm physical
 just run_full_slurm deeplearn
 
-# Checks
-python -m unittest discover -s tests -v
+# Checks (lightweight Nix environment; no PyTorch/CUDA)
+nix run .#test
 python scripts/validate_results_release.py
 ```
 
@@ -124,6 +124,8 @@ Until the repository owner initializes GitHub Wiki, the same pages are reviewabl
 See [`results/v1/README.md`](results/v1/README.md) for the full release caveats.
 
 ## Citation
+
+GitHub-compatible citation metadata is available in [`CITATION.cff`](CITATION.cff).
 
 ```bibtex
 @thesis{Cheney2026DRLScheduling,

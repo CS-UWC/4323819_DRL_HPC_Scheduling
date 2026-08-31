@@ -1,6 +1,8 @@
-# Apptainer / Singularity
+# Apptainer / Nix build outputs
 *.sif
+DRL_env_docker.tar
 nix-container-result
+build.log
 
 # Pipeline Data
 result/
@@ -18,6 +20,13 @@ visualise_instructions.md
 
 # Python / Nix / Snakemake
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
 .direnv/
 .snakemake/
 

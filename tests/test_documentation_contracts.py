@@ -46,6 +46,17 @@ class DocumentationContractTests(unittest.TestCase):
             documented.update(re.findall(r"\bjust ([a-z][a-z0-9_]*)", document.read_text()))
         self.assertEqual(documented - recipes, set())
 
+    def test_removed_interfaces_stay_removed(self) -> None:
+        for config in (ROOT / "config.yaml", ROOT / "config.smoke.yaml"):
+            text = config.read_text()
+            self.assertNotIn("allocators:", text)
+            self.assertNotIn("visualisation:", text)
+        self.assertFalse((ROOT / "src/test_scheduler.py").exists())
+        self.assertFalse((ROOT / "src/HPCsim/Visualize.py").exists())
+        self.assertNotIn("class ENV_allocator", (ROOT / "src/HPCsim/HPCsim.py").read_text())
+        self.assertFalse((ROOT / "data/traces").exists())
+        self.assertFalse((ROOT / "data/topologies").exists())
+
     def test_wiki_has_every_linked_guide(self) -> None:
         expected = {
             "Home.md", "Setup.md", "Local-Workflow.md", "HPC-SLURM-Workflow.md",

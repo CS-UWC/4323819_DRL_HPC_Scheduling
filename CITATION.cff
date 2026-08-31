@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software or results release, please cite it using this metadata."
+title: "Deep Reinforcement Learning for HPC Job Scheduling: A Statistical Evaluation"
+type: software
+authors:
+  - family-names: Cheney
+    given-names: Justin M.
+    affiliation: University of the Western Cape
+version: "1.0.0"
+date-released: 2026-08-30
+repository-code: "https://github.com/JCheney20/DRL_HPC_Scheduling"
+url: "https://github.com/JCheney20/DRL_HPC_Scheduling"
+license: MIT
+keywords:
+  - deep reinforcement learning
+  - high-performance computing
+  - job scheduling
+  - action masking
+  - reproducibility

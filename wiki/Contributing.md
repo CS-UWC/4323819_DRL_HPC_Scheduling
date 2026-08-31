@@ -14,12 +14,14 @@ Keep changes focused. Preserve development/holdout isolation and the machine-rea
 ## Required checks
 
 ```bash
-python -m unittest discover -s tests -v
+nix run .#test
 just dry_run_smoke physical
 just dry_run_smoke deeplearn
 just run_smoke physical
 python scripts/validate_results_release.py
 ```
+
+`nix run .#test` (or `just test`) uses a lightweight Nix environment and does not fetch PyTorch or CUDA. Pip users may run `python -m unittest discover -s tests -v` directly.
 
 Add one focused behavioral test when changing a parser, branch, loop, or pipeline contract. Do not add generated splits, raw evaluations, checkpoints, logs, or caches.
 

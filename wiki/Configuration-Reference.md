@@ -16,9 +16,8 @@ Use these files as the authorities:
 | Evaluation | `eval_deterministic`, `eval_max_steps`, `allow_partial_evaluation` |
 | Controls | `baseline_backfill`, `baseline_only` |
 | Selection | `pareto_metrics`, `pareto_tiebreakers`, `alpha` |
-| Output | `visualisation` |
 
-The Snakefile derives topology from `trace_name`: physical uses `physical_topology.txt`; deeplearn uses `deeplearn_topology.txt`.
+The Snakefile derives topology from `trace_name`: physical uses `physical_topology.txt`; deeplearn uses `deeplearn_topology.txt`. Allocation is fixed to `best_fit`, and the workflow always generates its supported result plots; neither behavior has a speculative config switch.
 
 ## Smoke versus production
 

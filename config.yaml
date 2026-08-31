@@ -50,12 +50,6 @@ trad_algorithms:
 # Evaluation only -- no training, no GPU. See src/random_control.py.
 random_control: true
 
-# -- Allocator -----------------------------------------------------------------
-allocators:
-  - "best_fit"
-  # - "topology_aware"
-  # - "first_available"
-
 # --- Training hyperparameters ------------------------------------------------
 save_interval: 300000
 total_saving: 10                   # total timesteps = save_interval * total_saving = 3M steps. 10 checkpoints (was 30 at 100k); pipeline evals only the final (3000000.zip), so fewer snapshots = ~3x less scratch I/O.
@@ -95,17 +89,4 @@ pareto_tiebreakers:
   - "avg_waiting"
   - "avg_slowdown"
   - "cpu_utilization"
-
-# --- Visualisation -----------------------------------------------------------
-visualisation:
-  plots_enabled: true
-  tables_enabled: true
-  cd_diagrams: true
-  confidence_curves: true
-  bar_graphs: true
-  spider_diagrams: false
-  heatmaps: false
-
-
-
 

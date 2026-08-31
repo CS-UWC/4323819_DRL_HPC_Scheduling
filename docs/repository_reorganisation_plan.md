@@ -1,6 +1,6 @@
 # Repository Reorganisation Plan
 
-Status: Phases 0–4 implemented and locally validated, 2026-08-30
+Status: Phases 0–5 implemented and locally validated, 2026-08-31
 
 ## Goal
 
@@ -194,13 +194,13 @@ Do not publish:
 
 ### Phase 5 — Remove dead interfaces and clutter
 
-- [ ] Delete or wire unused configuration: `allocators`, smoke `topology_file`, visualisation toggles, and Pareto keys.
-- [ ] Replace stale TODO references in module docstrings with current documentation paths.
-- [ ] Decide whether `src/test_scheduler.py` is a test or a CLI; rename or remove it accordingly.
-- [ ] Remove generated `__pycache__/` directories locally.
-- [ ] Ignore `.snakemake/`, virtual environments, `build.log`, container tar files, and other generated outputs.
-- [ ] Review duplicate data locations (`data/physical_job.csv`, `data/deeplearn_job.csv`, generated splits) and keep only inputs that can legally and usefully be distributed.
-- [ ] Add `CITATION.cff`.
+- [x] Delete or wire unused configuration: removed `allocators`, smoke `topology_file`, and visualisation toggles; Pareto keys remain because the Snakefile passes them to selection.
+- [x] Replace stale TODO and command references in module documentation.
+- [x] Remove the obsolete `src/test_scheduler.py` CLI in favor of `src.run_baseline`.
+- [x] Remove generated `__pycache__/` directories locally.
+- [x] Ignore `.snakemake/`, virtual environments, `build.log`, container tar files, and other generated outputs.
+- [x] Remove placeholder duplicate data directories; retain the two required source traces and singular `data/topology/` inputs while generated splits remain ignored.
+- [x] Add `CITATION.cff`.
 
 **Exit check:** `git status --ignored` shows only intentional generated files and no tracked duplicate outputs.
 

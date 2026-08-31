@@ -1,31 +1,11 @@
-"""baseline_aggregate.py
+"""Aggregate deterministic heuristics and seeded random-control evaluations.
 
-Aggregate traditional-scheduler baseline outputs (from run_baseline.py) into
-baseline_summary.csv -- analogous to aggregate_results.py's
-algorithm_summary.csv, but WITHOUT any seed-averaging, since each baseline
-algorithm produces exactly one deterministic value per trace. There is
-nothing to average across.
-
-This is intentionally a separate, much smaller script from
-aggregate_results.py rather than a mode flag on it: the DRL aggregation
-pipeline's entire structure (seed_summary -> mean/std per treatment ->
-algorithm_summary) assumes repeated stochastic measurements per treatment,
-which baselines do not have. Folding a "skip the seed step" branch into
-aggregate_results.py would complicate a script that's already correct and
-tested for its actual job; a small, single-purpose script is clearer than a
-conditional branch through code that doesn't apply to this case.
-
-Output schema matches the *_mean column naming convention of
-algorithm_summary.csv (e.g. "avg_waiting_mean_mean") purely so
-visualise.py's existing column-selection code (write_comparison_csv,
-draw_bar_graphs, etc.) can read baseline_summary.csv with zero changes if a
-combined-visual comparison is wanted, while the statistical protocol in
-docs/methodology_protocol.md keeps baseline statistics separate.
+The output uses the same metric-column convention as ``algorithm_summary.csv``.
 
 Usage:
-    python src/baseline_aggregate.py \\
-        --result-dir result/physical \\
-        --output baseline_summary.csv
+    python -m src.baseline_aggregate \\
+        --result-dir result/physical_job/baseline \\
+        --output result/physical_job/baseline/baseline_summary.csv
 """
 
 from __future__ import annotations
@@ -43,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Aggregate traditional baseline eval outputs.")
     parser.add_argument(
         "--result-dir", required=True, type=str,
-        help="Directory containing baseline *_metrics.csv files (e.g. result/physical).",
+        help="Directory containing baseline *_metrics.csv files.",
     )
     parser.add_argument(
         "--output", default="baseline_summary.csv", type=str,

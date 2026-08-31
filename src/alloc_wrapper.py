@@ -2,14 +2,9 @@
 
 Allocation-commit wrapper for HPCsim.
 
-HPCsim is a *two-level* scheduler env. ``HPCsim.step()`` is the high-level
-"which job to schedule next" policy; a *separate* ``ENV_allocator`` agent is the
-low-level "which nodes to place it on" policy that actually commits a placement
-(``cluster.allocation`` + ``queue.pop_sched_job`` + schedules the completion
-event via ``add_job_completion``).
-
-This project trains a single high-level agent and never wires up the low-level
-``ENV_allocator``. So ``HPCsim.step()`` only *checks* that a job could be placed
+Upstream HPCsim used a two-level design: ``HPCsim.step()`` selected a job and
+a separate low-level agent committed its node placement. This project is
+selector-only, so ``HPCsim.step()`` by itself only *checks* that a job could be placed
 (``check_allocate_list`` -> ``info['allocation']=True``) and returns without ever
 committing it. Consequences, all from the same missing commit:
 

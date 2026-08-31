@@ -55,11 +55,11 @@ training, tuning, and selection. `rule all` requires `visualise`,
 
 Workflow parameters live in `config.yaml` (production) / `config.smoke.yaml`
 (smoke). Key keys: `trace_name`, `seeds`, `algorithms`, `trad_algorithms`,
-`allocators`, `save_interval`, `total_saving` (total steps = `save_interval ×
-total_saving`), `window_size`, `tail_size`, `buffer_size`, `n_envs`,
-`batch_size`, `n_epochs`, `learning_rate`, `alpha`, `eval_deterministic`,
-`eval_max_steps`, `allow_partial_evaluation` (smoke only), `pareto_metrics`,
-`pareto_tiebreakers`, `visualisation`.
+`save_interval`, `total_saving` (total steps = `save_interval × total_saving`),
+`window_size`, `tail_size`, `buffer_size`, `n_envs`, `batch_size`, `n_epochs`,
+`learning_rate`, `alpha`, `eval_deterministic`, `eval_max_steps`,
+`allow_partial_evaluation` (smoke only), `pareto_metrics`, and
+`pareto_tiebreakers`. The workflow always generates its supported result plots.
 
 SLURM runner settings (executor, jobs, container, resources) live **only** in
 `profiles/slurm/config.yaml` — the config files carry no runner keys.
