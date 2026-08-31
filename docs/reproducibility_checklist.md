@@ -14,12 +14,12 @@ Use this checklist for every experiment batch or published result.
 - aggregate/statistics/release hash validation;
 - reviewer, date, and unresolved limitations.
 
-## Completed record: v1 release publication gate
+## Historical record: v1 artifact publication gate
 
 | Field | Recorded value |
 |---|---|
 | Date | 2026-08-30 |
-| Repository commit | `6f8755bc9e8d9e1260e2d576b39be5ce45adf3b9` |
+| Repository commit | `6f8755bc9e8d9e1260e2d576b39be5ce45adf3b9` (artifact-publication checkpoint; superseded by the final repository release below) |
 | Branch / state | `main`; clean after commit |
 | Experiment source commit | `fae1c739dd8e1743cd61d9cf909b23fa6e7d32a1` |
 | Release base commit | `fa0e299b58fa5ce297bb52a439d82658330600df` |
@@ -54,8 +54,26 @@ Reviewer outcome: parallel standards/spec review **PASS**. Known residual caveat
 
 ## Completed record: Phase 4 documentation gate
 
-On 2026-08-30, the Phase 4 tree passed 12 unit/contract checks, all four smoke/production × physical/deeplearn DAG dry-runs, `nix flake check --no-build`, shell syntax checks, local Markdown path/fragment checks, documented-`just` target checks, release validation, Python compilation, and `git diff --check`. The GitHub Wiki source is backed up under `wiki/`; its separate remote remains uninitialized and requires the repository owner to create the first Wiki page before publication.
+On 2026-08-30, the Phase 4 tree passed 12 unit/contract checks, all four smoke/production × physical/deeplearn DAG dry-runs, `nix flake check --no-build`, shell syntax checks, local Markdown path/fragment checks, documented-`just` target checks, release validation, Python compilation, and `git diff --check`. The GitHub Wiki source is backed up under `wiki/` and was subsequently published by the repository owner.
 
 ## Completed record: Phase 5 cleanup gate
 
 On 2026-08-31, `nix run .#test` passed 13 checks from a 53-path closure containing no Torch, CUDA, cuDNN, NCCL, or Triton paths. All four DAG dry-runs, `nix flake check --no-build`, release validation, shell syntax, and `git diff --check` passed. `git status --ignored` contained only intentional `.snakemake/` state and generated `data/splits/`; local Python caches were removed.
+
+## Authoritative final-release record: Phase 6 clean-clone gate
+
+Tag: `v1.0.0`
+
+Verified code commit: `dead94fbd0eee7365cdac45382bcfbc182a441f1`. The `v1.0.0` tag adds only the final gate record and release metadata above that tested code commit.
+
+A fresh clone passed:
+
+- `nix run .#test`: 14 tests;
+- `python scripts/validate_results_release.py` in `.#test`;
+- Python compilation and `git diff --check`;
+- smoke and production DAG dry-runs for `physical_job` and `deeplearn_job`;
+- `nix develop -c just run_smoke physical`: all 28 rules completed.
+
+The first clean-clone smoke attempt exposed a missing `TRAD_ALGORITHMS` import in `src.run_baseline`; `dead94f` adds the import and a red/green CLI regression test. The successful rerun produced four unique development and four unique holdout treatment-seed rows, all with finite core metrics and explicit `step_cap`/partial status. Aggregate row counts were 4 seed and 2 treatment summaries per scope. Development and holdout control summaries contained the expected two heuristics plus seeded random control. Aggregate and statistics metadata recorded the verified commit, and every terminal artifact existed.
+
+All repository-relative README/results links resolved. Every external URL in `README.md` and `results/v1/README.md`, including the published Wiki pages, returned HTTP 2xx. The 2.4 MB immutable release remains tracked; no duplicate attachment is required.

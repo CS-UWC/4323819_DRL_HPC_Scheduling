@@ -1,6 +1,6 @@
 # Repository Reorganisation Plan
 
-Status: Phases 0–5 implemented and locally validated, 2026-08-31
+Status: Phases 0–6 complete; clean-clone gate passed, 2026-08-31
 
 ## Goal
 
@@ -206,18 +206,18 @@ Do not publish:
 
 ### Phase 6 — Final reproducibility gate
 
-Run from a clean clone:
+Completed from a clean clone of `dead94fbd0eee7365cdac45382bcfbc182a441f1`:
 
-1. enter the documented environment;
-2. run formatting/static checks chosen in Phase 2;
-3. run focused tests;
-4. run smoke DAG dry-runs for both traces;
-5. run one end-to-end smoke workflow;
-6. verify output schemas and finite metrics;
-7. regenerate or verify `results/v1/manifest.json` hashes;
-8. check every README and results link.
+- [x] enter the documented Nix environment;
+- [x] run compilation, shell syntax, and diff checks;
+- [x] pass 14 focused contract tests through the lightweight test app;
+- [x] resolve smoke and production DAGs for both traces;
+- [x] complete one 28-rule physical end-to-end smoke workflow;
+- [x] verify development/holdout/control schemas, expected row counts, finite core metrics, explicit smoke caps, and commit provenance;
+- [x] verify every `results/v1/manifest.json` hash;
+- [x] resolve every local README/results link and receive HTTP 2xx for every external README/results link.
 
-**Exit check:** tag the verified release and attach the immutable results bundle if Git size makes tracked figures/tables unsuitable.
+**Exit check:** passed. `results/v1/` is about 2.4 MB and remains tracked, so no duplicate release attachment is needed. Tag `v1.0.0` identifies the verified repository release.
 
 ## Proposed PR sequence
 

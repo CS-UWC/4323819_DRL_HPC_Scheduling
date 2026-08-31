@@ -6,7 +6,7 @@ These Markdown files are the reviewable backup of the project Wiki owned by **JC
 - Wiki Git remote: `git@github.com:JCheney20/DRL_HPC_Scheduling.wiki.git`
 - Repository: <https://github.com/JCheney20/DRL_HPC_Scheduling>
 
-The Wiki remote is not initialized yet. The owner must enable Wiki and create the first `Home` page on GitHub once. Then publish this directory to the separate Wiki repository:
+The Wiki is published. Synchronize this reviewed mirror to the separate Wiki repository with:
 
 ```bash
 ssh -T git@github.com

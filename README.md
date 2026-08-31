@@ -112,7 +112,7 @@ The [GitHub Wiki](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki) follows 
 - [Troubleshooting](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Troubleshooting)
 - [Contributing](https://github.com/JCheney20/DRL_HPC_Scheduling/wiki/Contributing)
 
-Until the repository owner initializes GitHub Wiki, the same pages are reviewable under [`wiki/`](wiki/README.md).
+The published Wiki is backed up as reviewable source under [`wiki/`](wiki/README.md).
 
 ## Limitations
 
