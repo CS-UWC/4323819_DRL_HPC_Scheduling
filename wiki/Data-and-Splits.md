@@ -7,7 +7,7 @@ The repository contains two upstream HPCSim Slurm traces:
 | `data/physical_job.csv` | 84,135 | 2022-09-23 to 2022-09-30 | physical |
 | `data/deeplearn_job.csv` | 68,720 | 2021-09-20 to 2022-09-30 | deeplearn |
 
-Cluster definitions are under `data/topology/`. The exact tab-separated trace fields, node CSV, and switch-hierarchy formats are defined only in [`docs/HPCSim.md`](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/HPCSim.md).
+Cluster definitions are under `data/topology/`. Exact provenance, trace fields, node CSV, and switch-hierarchy formats are defined in [`docs/data.md`](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/data.md).
 
 ## Generate deterministic splits
 
@@ -26,7 +26,7 @@ logs/<trace>_r70.json
 
 Never random-shuffle the trace. Tune and select on development only. All six frozen treatments may be evaluated on holdout once for final reporting; holdout must not feed selection. Training rejects paths containing holdout-like names.
 
-The authoritative rule is [`docs/data_split_policy.md`](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/data_split_policy.md).
+The authoritative split and leakage rule is in [`docs/methodology_protocol.md`](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/methodology_protocol.md).
 
 ## Governance
 

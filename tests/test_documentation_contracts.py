@@ -47,6 +47,17 @@ class DocumentationContractTests(unittest.TestCase):
             documented.update(re.findall(r"\bjust ([a-z][a-z0-9_]*)", document.read_text()))
         self.assertEqual(documented - recipes, set())
 
+    def test_docs_have_one_file_per_authoritative_concern(self) -> None:
+        self.assertEqual(
+            {path.relative_to(ROOT / "docs").as_posix() for path in (ROOT / "docs").rglob("*.md")},
+            {
+                "data.md",
+                "methodology_protocol.md",
+                "pipeline_contract.md",
+                "reproducibility.md",
+            },
+        )
+
     def test_removed_interfaces_stay_removed(self) -> None:
         for config in (ROOT / "config.yaml", ROOT / "config.smoke.yaml"):
             text = config.read_text()

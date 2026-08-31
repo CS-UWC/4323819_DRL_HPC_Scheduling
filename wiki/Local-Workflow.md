@@ -69,4 +69,4 @@ logs/                              manifests and rule logs
 - aggregation and statistics accept their inputs;
 - run metadata records a non-null Git commit.
 
-For file contracts, use the versioned [result schema](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/result_schema.md).
+For stage and file contracts, use the versioned [pipeline contract](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/pipeline_contract.md).

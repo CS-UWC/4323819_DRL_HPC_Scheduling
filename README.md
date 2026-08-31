@@ -16,7 +16,7 @@ This is the authoritative implementation and reproducibility repository for a st
 | Primary metrics | Average waiting time and average slowdown |
 | Analysis | Friedman, Kendall's W, Nemenyi, Wilcoxon CIs, Page trend, and Pareto selection |
 
-Development data is the only surface used for model selection. All six treatments are evaluated on holdout for final reporting, but the holdout is never used for tuning or selection. See the versioned [methodology protocol](docs/methodology_protocol.md) and [split policy](docs/data_split_policy.md).
+Development data is the only surface used for model selection. All six treatments are evaluated on holdout for final reporting, but the holdout is never used for tuning or selection. See the versioned [methodology protocol](docs/methodology_protocol.md).
 
 ## Findings
 
@@ -97,7 +97,7 @@ profiles/slurm/          Snakemake SLURM profile
 results/v1/              immutable curated evidence release
 ```
 
-HPCSim trace, node, and topology formats are defined in [`docs/HPCSim.md`](docs/HPCSim.md); output schemas are defined in [`docs/result_schema.md`](docs/result_schema.md).
+Dataset provenance and HPCSim formats are defined in [`docs/data.md`](docs/data.md); workflow and output schemas are defined in [`docs/pipeline_contract.md`](docs/pipeline_contract.md); verified release evidence is recorded in [`docs/reproducibility.md`](docs/reproducibility.md).
 
 ## Detailed guides
 

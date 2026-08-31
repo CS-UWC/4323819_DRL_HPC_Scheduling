@@ -42,11 +42,20 @@ HPCSim is a trace-driven Gymnasium environment using a best-fit allocator. The s
 | `physical_job` | 84,135 | `physical_topology.txt` |
 | `deeplearn_job` | 68,720 | `deeplearn_topology.txt` |
 
-Exact input formats are defined in [`HPCSim.md`](HPCSim.md). The Snakefile derives topology from `trace_name`.
+Input provenance and formats are defined in [`data.md`](data.md). The Snakefile derives topology from `trace_name`.
 
-## Data governance
+## Time-aware split and leakage policy
 
-Each trace is stable-sorted by `Submit`. The earliest 70% is development; the latest 30% is holdout. There is no random shuffle. Training, statistical comparison, and selection use development only. All six frozen treatments are evaluated on holdout for final reporting; holdout does not feed tuning or selection. See [`data_split_policy.md`](data_split_policy.md).
+Each trace is stable-sorted by `Submit`; trace order is never shuffled.
+
+| Source | Total | Development (earliest 70%) | Holdout (latest 30%) | Split ID |
+|---|---:|---:|---:|---|
+| `physical_job` | 84,135 | 58,894 | 25,241 | `physical_job_r70` |
+| `deeplearn_job` | 68,720 | 48,104 | 20,616 | `deeplearn_job_r70` |
+
+Development is the only surface for training, statistical comparison, and selection. `src.train_agents` rejects holdout/test-like paths before environment construction. After treatment definitions and seeds are frozen, all six treatments are evaluated on holdout for final reporting. Holdout never feeds tuning, early stopping, or selection. Optional blocked cross-validation is permitted only inside development data and was not used for v1.
+
+Split metadata records the source hash, ratio, stable sort key, exact row counts, stable split ID, generation timestamp, and output paths. Changing source bytes, ratio, sort key, or holdout scope defines a new experiment and must not overwrite v1.
 
 ## Training protocol
 
@@ -113,7 +122,7 @@ python -m src.statistical_test \
 
 ## Output contracts
 
-The machine-readable schemas and directory contracts are defined in [`result_schema.md`](result_schema.md). The curated v1 publication includes only aggregate seed/treatment summaries, statistical tables, selection rationale, and paper-facing evidence. Raw runs, models, logs, and generated splits are excluded.
+The DAG, CLI seams, and machine-readable file contracts are defined in [`pipeline_contract.md`](pipeline_contract.md). The curated v1 publication includes only aggregate seed/treatment summaries, statistical tables, selection rationale, and paper-facing evidence. Raw runs, models, logs, and generated splits are excluded. Release commits, hashes, and gate evidence are owned by [`reproducibility.md`](reproducibility.md) and `results/v1/manifest.json`.
 
 ## Threats to validity
 
@@ -122,7 +131,3 @@ The machine-readable schemas and directory contracts are defined in [`result_sch
 - **Statistical:** ten seeds limit power for small effects and make rank conclusions sensitive to variance.
 - **Construct:** waiting/slowdown and utilization do not capture every operational objective, including fairness, energy, and failures.
 - **Implementation:** locally implemented maskable A2C/DQN may differ from other libraries despite shared interfaces.
-
-## Reproducibility record
-
-The frozen release records source commit `fae1c739dd8e1743cd61d9cf909b23fa6e7d32a1`; the public result-bundle base is `fa0e299b58fa5ce297bb52a439d82658330600df`. Seeds, split IDs, source hashes, commands, artifact hashes, and provenance caveats are in [`../results/v1/manifest.json`](../results/v1/manifest.json). Validate with `python scripts/validate_results_release.py`.

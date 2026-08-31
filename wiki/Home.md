@@ -39,6 +39,6 @@ Then follow:
 7. [Troubleshooting](Troubleshooting)
 8. [Contributing](Contributing)
 
-The repository README gives the complete first glance. Versioned research rules remain in the [methodology protocol](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/methodology_protocol.md), [split policy](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/data_split_policy.md), [HPCSim format specification](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/HPCSim.md), and [result schema](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/result_schema.md).
+The repository README gives the complete first glance. Versioned authorities are the [methodology protocol](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/methodology_protocol.md), [data and HPCSim specification](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/data.md), [pipeline contract](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/pipeline_contract.md), and [reproducibility record](https://github.com/JCheney20/DRL_HPC_Scheduling/blob/main/docs/reproducibility.md).
 
 [Back to the authoritative repository](https://github.com/JCheney20/DRL_HPC_Scheduling)
